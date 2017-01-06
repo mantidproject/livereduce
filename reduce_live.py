@@ -5,33 +5,36 @@ import signal
 import sys
 import time
 
+keep_running = True  # file-global variable to keep the interpreter running
+
 ####################
 # register a signal handler so we can exit gracefully if someone kills us
 ####################
-keep_running = True
-def sigterm_handler(sig_received, frame):
-    sig_name = {signal.SIGINT:'SIGINT',
-                signal.SIGQUIT:'SIGQUIT',
-                signal.SIGTERM:'SIGTERM'}
+# signal.SIGHUP - hangup does nothing
+# signal.SIGSTOP - doesn't want to register
+# signal.SIGKILL - doesn't want to register
+sig_name = {signal.SIGINT: 'SIGINT',
+            signal.SIGQUIT: 'SIGQUIT',
+            signal.SIGTERM: 'SIGTERM'}
 
+
+def sigterm_handler(sig_received, frame):
     msg = 'received %s(%d)' % (sig_name[sig_received], sig_received)
-    #logger.debug( "SIGTERM received")
+    # logger.debug( "SIGTERM received")
     print(msg)
     shutdown_mantid()
-    if  sig_received == signal.SIGINT:
+    if sig_received == signal.SIGINT:
         raise KeyboardInterrupt(msg)
     else:
         raise RuntimeError(msg)
 
-# signal.SIGHUP - hangup does nothing
-# signal.SIGSTOP - doesn't want to register
-# signal.SIGKILL - doesn't want to register
-for signal_event in [signal.SIGINT, signal.SIGQUIT, signal.SIGTERM]:
-    #print('registering ', str(signal_event))
+for signal_event in sig_name.keys():
+    # print('registering ', str(signal_event))
     signal.signal(signal_event, sigterm_handler)
 ####################
 # end of signal handling
 ####################
+
 
 def shutdown_mantid():
     '''Determine if mantid is running and shuts it down'''
@@ -40,6 +43,7 @@ def shutdown_mantid():
     if 'AlgorithmManager' in locals() or 'AlgorithmManager' in globals():
         print('shutting down mantid')
         AlgorithmManager.cancelAll()
+
 
 class Config(object):
     '''
@@ -70,7 +74,8 @@ class Config(object):
         # location of the scripts
         self.script_dir = json_doc.get('script_dir')
         if self.script_dir is None:
-            self.script_dir = '/SNS/%s/shared/livereduce' % self.instrument.shortName()
+            self.script_dir = '/SNS/%s/shared/livereduce' % \
+                              self.instrument.shortName()
         self.script_dir = str(self.script_dir)
 
         self.__determineScriptNames()
@@ -90,15 +95,18 @@ class Config(object):
         self.procScript = filenameStart + '_proc.py'
         self.procScript = os.path.join(self.script_dir, self.procScript)
         if not os.path.exists(self.procScript):
-            raise RuntimeError('ProcessingScriptFilename \'%s\' does not exist' %
-                               self.procScript)
+            msg = 'ProcessingScriptFilename \'%s\' does not exist' % \
+                  self.procScript
+            raise RuntimeError(msg)
 
         # script for processing accumulation
         self.postProcScript = filenameStart + '_post_proc.py'
-        self.postProcScript = os.path.join(self.script_dir, self.postProcScript)
+        self.postProcScript = os.path.join(self.script_dir,
+                                           self.postProcScript)
         if not os.path.exists(self.postProcScript):
-            raise RuntimeError('PostProcessingScriptFilename \'%s\' does not exist' %
-                               self.postProcScript)
+            msg = 'PostProcessingScriptFilename \'%s\' does not exist' % \
+                  self.postProcScript
+            raise RuntimeError(msg)
 
     def toJson(self):
         values = dict(instrument=self.instrument.shortName(),
@@ -109,7 +117,8 @@ class Config(object):
 config = Config('liveprocessing.conf')
 print(config.toJson())
 
-from mantid import AlgorithmManager # required for clean shutdown to work
+# needs to happen after configuration is loaded
+from mantid import AlgorithmManager  # required for clean shutdown to work
 from mantid.simpleapi import StartLiveData
 
 # need handle to the `MonitorLiveData` algorithm or it only runs once
