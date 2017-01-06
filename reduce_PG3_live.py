@@ -1,8 +1,47 @@
-from mantid import AlgorithmManager
-from mantid.simpleapi import StartLiveData
+from __future__ import (absolute_import, division, print_function)
 import os
-import sys
+import signal
 import time
+
+####################
+# register a signal handler so we can exit gracefully if someone kills us
+####################
+keep_running = True
+def sigterm_handler(sig_received, frame):
+    sig_name = {signal.SIGINT:'SIGINT',
+                signal.SIGQUIT:'SIGQUIT',
+                signal.SIGTERM:'SIGTERM'}
+
+    msg = 'received %s(%d)' % (sig_name[sig_received], sig_received)
+    #logger.debug( "SIGTERM received")
+    print(msg)
+    shutdown_mantid()
+    if  sig_received == signal.SIGINT:
+        raise KeyboardInterrupt(msg)
+    else:
+        raise RuntimeError(msg)
+
+# signal.SIGHUP - hangup does nothing
+# signal.SIGSTOP - doesn't want to register
+# signal.SIGKILL - doesn't want to register
+for signal_event in [signal.SIGINT, signal.SIGQUIT, signal.SIGTERM]:
+    #print('registering ', str(signal_event))
+    signal.signal(signal_event, sigterm_handler)
+####################
+# end of signal handling
+####################
+
+def shutdown_mantid():
+    '''Determine if mantid is running and shuts it down'''
+    keep_running = False
+
+    if 'AlgorithmManager' in locals() or 'AlgorithmManager' in globals():
+        print('shutting down mantid')
+        AlgorithmManager.cancelAll()
+
+
+from mantid import AlgorithmManager # required for clean shutdown to work
+from mantid.simpleapi import StartLiveData
 
 direc = '/SNS/PG3/shared/livereduce'
 direc = '/home/pf9/Dropbox/projects'
@@ -28,25 +67,14 @@ try:
                   AccumulationWorkspace='accum',
                   OutputWorkspace='result')
 except KeyboardInterrupt:
-    print "interupted StartLiveData"
-    alg = AlgorithmManager.newestInstanceOf("StartLiveData")
-    alg.cancel()
-    while alg.isRunning():
-        time.sleep(0.1)
+    print("interupted StartLiveData")
+    shutdown_mantid()
     sys.exit(-1)
 
-keep_running = True
+# need to keep the process going otherwise script will end after one chunk
 while keep_running:
-    try:
-        time.sleep(2.0)
-    except KeyboardInterrupt:
-        print "interupted"
-        keep_running = False
+    time.sleep(2.0)
 
-alg = AlgorithmManager.newestInstanceOf("MonitorLiveData")
-if alg.isRunning():
-    alg.cancel()
-    while alg.isRunning():
-        time.sleep(0.1)
-
+# cleanup in the off chance that the script gets here
+shutdown_mantid()
 sys.exit(0)
