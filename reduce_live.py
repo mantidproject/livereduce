@@ -83,6 +83,14 @@ class Config(object):
 
         self.__determineScriptNames()
 
+        # TODO make this configuration
+        self.fromNow=False
+        self.fromStartOfRun=True
+        self.updateEvery=30
+        self.preserveEvents=True
+        self.accumulationWorkspace='accum'
+        self.outputWorkspace='result'
+
     def __getInstrument(self, instrument):
         from mantid import ConfigService
         if instrument is None:
@@ -129,12 +137,12 @@ try:
     StartLiveData(Instrument=config.instrument.name(),
                   ProcessingScriptFilename=config.procScript,
                   PostProcessingScriptFilename=config.postProcScript,
-                  FromNow=False,
-                  FromStartOfRun=True,
-                  UpdateEvery=30,
-                  PreserveEvents=True,
-                  AccumulationWorkspace='accum',
-                  OutputWorkspace='result')
+                  FromNow=config.fromNow,
+                  FromStartOfRun=config.fromStartOfRun,
+                  UpdateEvery=config.updateEvery,
+                  PreserveEvents=config.preserveEvents,
+                  AccumulationWorkspace=config.accumulationWorkspace,
+                  OutputWorkspace=config.outputWorkspace)
 except KeyboardInterrupt:
     print("interupted StartLiveData")
     shutdown_mantid()
