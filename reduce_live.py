@@ -48,7 +48,7 @@ def shutdown_mantid():
 class Config(object):
     '''
     Configuration storred in json format. The keys are:
-    * 'instrument' - missing generates an error
+    * 'instrument' - default from ~/.mantid/Mantid.user.properties
     * 'mantid_loc' - if not specified, goes to environment variable
       ${MANTIDPATH} then defaults to '/opt/Mantid/bin/'
     * 'script_dir' - default value is '/SNS/{instrument}/shared/livereduce'
@@ -57,8 +57,11 @@ class Config(object):
     def __init__(self, filename='/etc/liveprocessing.conf'):
         '''Optional arguemnt is the json formatted config file'''
         # read file from json into a dict
-        with open(filename, 'r') as handle:
-            json_doc = json.load(handle)
+        if os.path.exists(filename):
+            with open(filename, 'r') as handle:
+                json_doc = json.load(handle)
+        else:
+            json_doc = dict()
 
         # get mantid location and add to the python path
         self.mantid_loc = json_doc.get('mantid_loc')
