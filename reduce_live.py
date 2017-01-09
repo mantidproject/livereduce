@@ -54,13 +54,15 @@ class Config(object):
     * 'script_dir' - default value is '/SNS/{instrument}/shared/livereduce'
     '''
 
-    def __init__(self, filename='/etc/liveprocessing.conf'):
+    def __init__(self, filename):
         '''Optional arguemnt is the json formatted config file'''
         # read file from json into a dict
-        if os.path.exists(filename):
+        if filename is not None and os.path.exists(filename):
+            print('Loading configuration from \'%s\'' % filename)
             with open(filename, 'r') as handle:
                 json_doc = json.load(handle)
         else:
+            print('Using default configuration')
             json_doc = dict()
 
         # get mantid location and add to the python path
@@ -144,7 +146,19 @@ class Config(object):
 
         return json.dumps(values, **kwargs)
 
-config = Config('liveprocessing.conf')
+# determine the configuration file
+config = ['/etc/liveprocessing.conf']
+if len(sys.argv) > 1:
+    config.insert(0, sys.argv[1])
+config = [filename for filename in config
+          if os.path.exists(filename)]
+if len(config) > 0:
+    config = config[0]
+else:
+    config = None
+
+# convert configuration from filename to object and print it out
+config = Config(config)
 print('Configuration options:')
 print(config.toJson(sort_keys=True, indent=2))
 
