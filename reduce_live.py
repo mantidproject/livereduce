@@ -71,8 +71,9 @@ class Config(object):
                 self.mantid_loc = '/opt/Mantid/bin/'
         sys.path.append(self.mantid_loc)
 
-        # instrument is critical
         self.instrument = self.__getInstrument(json_doc.get('instrument'))
+        self.updateEvery = json_doc.get('update_every', 30) # in seconds
+        self.preserveEvents = json_doc.get('preserve_events', True)
 
         # location of the scripts
         self.script_dir = json_doc.get('script_dir')
@@ -81,15 +82,7 @@ class Config(object):
                               self.instrument.shortName()
         self.script_dir = str(self.script_dir)
 
-        self.__determineScriptNames()
-
-        # TODO make this configuration
-        self.fromNow=False
-        self.fromStartOfRun=True
-        self.updateEvery=30
-        self.preserveEvents=True
-        self.accumulationWorkspace='accum'
-        self.outputWorkspace='result'
+        self.__determineScriptNames(json_doc.get('post_process', True))
 
     def __getInstrument(self, instrument):
         from mantid import ConfigService
@@ -99,7 +92,7 @@ class Config(object):
         else:
             return ConfigService.getInstrument(str(instrument))
 
-    def __determineScriptNames(self):
+    def __determineScriptNames(self, tryPostProcess):
         filenameStart = 'reduce_%s_live' % str(self.instrument.shortName())
 
         # script for processing each chunk
@@ -111,22 +104,49 @@ class Config(object):
             raise RuntimeError(msg)
 
         # script for processing accumulation
-        self.postProcScript = filenameStart + '_post_proc.py'
-        self.postProcScript = os.path.join(self.script_dir,
-                                           self.postProcScript)
-        if not os.path.exists(self.postProcScript):
-            msg = 'PostProcessingScriptFilename \'%s\' does not exist' % \
-                  self.postProcScript
-            raise RuntimeError(msg)
+        self.postProcScript = None  # signifies nothing to be done in post-processing
+        if tryPostProcess:
+            self.postProcScript = filenameStart + '_post_proc.py'
+            self.postProcScript = os.path.join(self.script_dir,
+                                               self.postProcScript)
+            if not os.path.exists(self.postProcScript):
+                self.postProcScript = None
+                msg = 'PostProcessingScriptFilename \'%s\' does not exist' % \
+                      self.postProcScript
+                print(msg, 'not running post-proccessing')
 
-    def toJson(self):
+    def toStartLiveArgs(self):
+
+        args = dict(Instrument=self.instrument.name(),
+                    UpdateEvery=self.updateEvery,
+                    PreserveEvents=self.preserveEvents,
+                    ProcessingScriptFilename=self.procScript,
+                    OutputWorkspace='result')
+
+
+        # these must be in agreement with each other
+        args['FromNow'] = False
+        args['FromStartOfRun'] = True
+
+        if self.postProcScript is not None:
+            args['AccumulationWorkspace'] = 'accumulation'
+            args['PostProcessingScriptFilename'] = self.postProcScript
+
+        return args
+
+    def toJson(self, **kwargs):
         values = dict(instrument=self.instrument.shortName(),
                       mantid_loc=self.mantid_loc,
-                      script_dir=self.script_dir)
-        return json.dumps(values)
+                      script_dir=self.script_dir,
+                      update_every=self.updateEvery,
+                      preserve_events=self.preserveEvents,
+                      post_process=(self.postProcScript is not None))
+
+        return json.dumps(values, **kwargs)
 
 config = Config('liveprocessing.conf')
-print(config.toJson())
+print('Configuration options:')
+print(config.toJson(sort_keys=True, indent=2))
 
 # needs to happen after configuration is loaded
 from mantid import AlgorithmManager  # required for clean shutdown to work
@@ -134,15 +154,7 @@ from mantid.simpleapi import StartLiveData
 
 # need handle to the `MonitorLiveData` algorithm or it only runs once
 try:
-    StartLiveData(Instrument=config.instrument.name(),
-                  ProcessingScriptFilename=config.procScript,
-                  PostProcessingScriptFilename=config.postProcScript,
-                  FromNow=config.fromNow,
-                  FromStartOfRun=config.fromStartOfRun,
-                  UpdateEvery=config.updateEvery,
-                  PreserveEvents=config.preserveEvents,
-                  AccumulationWorkspace=config.accumulationWorkspace,
-                  OutputWorkspace=config.outputWorkspace)
+    StartLiveData(**config.toStartLiveArgs())
 except KeyboardInterrupt:
     print("interupted StartLiveData")
     shutdown_mantid()
