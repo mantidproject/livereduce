@@ -47,5 +47,6 @@ Requires:      python
 rm -rf $RPM_BUILD_ROOT
 
 %files
+%doc README.md
 %{python2_sitelib}/*
 %{_bindir}/reduce_live.py
