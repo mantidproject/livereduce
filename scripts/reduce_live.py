@@ -1,11 +1,42 @@
 from __future__ import (absolute_import, division, print_function)
 import json
+import logging
 import os
 import signal
 import sys
 import time
 
 keep_running = True  # file-global variable to keep the interpreter running
+
+
+####################
+# configure logging
+####################
+LOG_NAME='livereduce'  # constant for logging
+LOG_FILE='/tmp/livereduce.log' # '/var/log/livereduce.log' TODO
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# create a file handler
+if os.environ['USER'] == 'snsdata':
+    handler = logging.FileHandler(LOG_FILE)
+else:
+    handler = logging.FileHandler('livereduce.log')
+handler.setLevel(logging.INFO)
+
+# create a logging format
+format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+handler.setFormatter(logging.Formatter(format))
+
+# add the handlers to the logger
+logger.addHandler(handler)
+
+logger.info('logging started')
+####################
+# end of logging configuration
+####################
+
+
 
 ####################
 # register a signal handler so we can exit gracefully if someone kills us
@@ -21,7 +52,7 @@ sig_name = {signal.SIGINT: 'SIGINT',
 def sigterm_handler(sig_received, frame):
     msg = 'received %s(%d)' % (sig_name[sig_received], sig_received)
     # logger.debug( "SIGTERM received")
-    print(msg)
+    logger.info(msg)
     shutdown_mantid()
     if sig_received == signal.SIGINT:
         raise KeyboardInterrupt(msg)
@@ -29,7 +60,7 @@ def sigterm_handler(sig_received, frame):
         raise RuntimeError(msg)
 
 for signal_event in sig_name.keys():
-    # print('registering ', str(signal_event))
+    logger.debug('registering '+str(signal_event))
     signal.signal(signal_event, sigterm_handler)
 ####################
 # end of signal handling
@@ -41,7 +72,7 @@ def shutdown_mantid():
     keep_running = False
 
     if 'AlgorithmManager' in locals() or 'AlgorithmManager' in globals():
-        print('shutting down mantid')
+        logger.info('shutting down mantid')
         AlgorithmManager.cancelAll()
 
 
@@ -56,13 +87,15 @@ class Config(object):
 
     def __init__(self, filename):
         '''Optional arguemnt is the json formatted config file'''
+        self.logger = logger or logging.getLogger(self.__class__.__name__)
+
         # read file from json into a dict
         if filename is not None and os.path.exists(filename):
-            print('Loading configuration from \'%s\'' % filename)
+            self.logger.info('Loading configuration from \'%s\'' % filename)
             with open(filename, 'r') as handle:
                 json_doc = json.load(handle)
         else:
-            print('Using default configuration')
+            self.logger.info('Using default configuration')
             json_doc = dict()
 
         # get mantid location and add to the python path
@@ -87,12 +120,16 @@ class Config(object):
         self.__determineScriptNames(json_doc.get('post_process', True))
 
     def __getInstrument(self, instrument):
-        from mantid import ConfigService
-        if instrument is None:
-            print('Using default instrument')
-            return ConfigService.getInstrument()
-        else:
-            return ConfigService.getInstrument(str(instrument))
+        try:
+            from mantid import ConfigService
+            if instrument is None:
+                self.logger.info('Using default instrument')
+                return ConfigService.getInstrument()
+            else:
+                return ConfigService.getInstrument(str(instrument))
+        except ImportError, e:
+            self.logger.error('Failed to import mantid', exc_info=True)
+            raise
 
     def __determineScriptNames(self, tryPostProcess):
         filenameStart = 'reduce_%s_live' % str(self.instrument.shortName())
@@ -115,7 +152,7 @@ class Config(object):
                 self.postProcScript = None
                 msg = 'PostProcessingScriptFilename \'%s\' does not exist' % \
                       self.postProcScript
-                print(msg, 'not running post-proccessing')
+                self.logger.info(msg, 'not running post-proccessing')
 
     def toStartLiveArgs(self):
 
@@ -159,18 +196,22 @@ else:
 
 # convert configuration from filename to object and print it out
 config = Config(config)
-print('Configuration options:')
-print(config.toJson(sort_keys=True, indent=2))
+logger.info('Configuration options: '
+            + config.toJson(sort_keys=True, indent=2))
 
 # needs to happen after configuration is loaded
 from mantid import AlgorithmManager  # required for clean shutdown to work
 from mantid.simpleapi import StartLiveData
 
 # need handle to the `MonitorLiveData` algorithm or it only runs once
+liveArgs = config.toStartLiveArgs()
+logger.info('StartLiveData(' + json.dumps(liveArgs, sort_keys=True, indent=2)
+            + ')')
+
 try:
-    StartLiveData(**config.toStartLiveArgs())
+    StartLiveData(**liveArgs)
 except KeyboardInterrupt:
-    print("interupted StartLiveData")
+    logger.info("interupted StartLiveData")
     shutdown_mantid()
     sys.exit(-1)
 

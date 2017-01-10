@@ -15,4 +15,5 @@ setup(name="livereduce",
       package_dir={},
       install_requires=[],
       setup_requires=[],
+      data_files=[('/usr/lib/systemd/system/', ['livereduce.service'])]
 )

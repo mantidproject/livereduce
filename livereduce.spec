@@ -50,3 +50,4 @@ rm -rf $RPM_BUILD_ROOT
 %doc README.md
 %{python2_sitelib}/*
 %{_bindir}/reduce_live.py
+%{_prefix}/lib/systemd/system/livereduce.service
