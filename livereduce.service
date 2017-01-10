@@ -1,0 +1,11 @@
+[Unit]
+Description=Live processing service
+
+[Service]
+WorkingDirectory=/tmp
+User=snsdata
+ExecStart=/usr/bin/python /usr/bin/reduce_live.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
