@@ -13,7 +13,7 @@ keep_running = True  # file-global variable to keep the interpreter running
 # configure logging
 ####################
 LOG_NAME='livereduce'  # constant for logging
-LOG_FILE='/tmp/livereduce.log' # '/var/log/livereduce.log' TODO
+LOG_FILE='/var/log/SNS_applications/livereduce.log'
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 

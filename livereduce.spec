@@ -46,6 +46,14 @@ Requires:      python
 %clean
 rm -rf $RPM_BUILD_ROOT
 
+%post
+mkdir -p /var/log/SNS_applications/
+chown snsdata /var/log/SNS_applications/
+chmod 1755 /var/log/SNS_applications/
+
+%preun
+rm -f /var/log/SNS_applications/livereduce.log*
+
 %files
 %doc README.md
 %{python2_sitelib}/*
