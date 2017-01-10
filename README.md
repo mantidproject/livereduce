@@ -1,3 +1,22 @@
+Configuration and logging
+-------------------------
+
+The configuration is automatically read from `/etc/livereduce.conf`
+unless specified as a command line argument. Defaults will be
+attempted to be determined from the environment. A minimal configuration to specify using nightly builds of mantid is
+```json
+{
+  "instrument": "PG3",
+  "mantid_loc": "/opt/mantidnightly/bin"
+}
+```
+For testing a configuration file can be supplied as a command line argument.
+
+The logfile is `/var/log/SNS_applications/livereduce.log` if run as
+the user `snsdata`, or `livereduce.log` in the current working
+directory (if run from the command line).
+
+
 Building and packaging
 ----------------------
 
