@@ -4,7 +4,7 @@ Description=Live processing service
 [Service]
 WorkingDirectory=/tmp
 User=snsdata
-ExecStart=/usr/bin/python /usr/bin/reduce_live.py
+ExecStart=/usr/bin/python /usr/bin/livereduce.py
 Restart=always
 
 [Install]

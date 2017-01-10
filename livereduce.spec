@@ -57,5 +57,5 @@ rm -f /var/log/SNS_applications/livereduce.log*
 %files
 %doc README.md
 %{python2_sitelib}/*
-%{_bindir}/reduce_live.py
+%{_bindir}/livereduce.py
 %{_prefix}/lib/systemd/system/livereduce.service
