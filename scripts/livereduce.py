@@ -184,7 +184,7 @@ class Config(object):
         return json.dumps(values, **kwargs)
 
 # determine the configuration file
-config = ['/etc/liveprocessing.conf']
+config = ['/etc/livereduce.conf']
 if len(sys.argv) > 1:
     config.insert(0, sys.argv[1])
 config = [filename for filename in config
