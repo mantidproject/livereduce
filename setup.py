@@ -13,7 +13,7 @@ setup(name="livereduce",
       scripts=["scripts/livereduce.py"],
       packages=find_packages(),
       package_dir={},
-      install_requires=[],
+      install_requires=['pyinotify'],
       setup_requires=[],
       data_files=[('/usr/lib/systemd/system/', ['livereduce.service'])]
 )

@@ -27,7 +27,12 @@ Url: https://github.com/mantidproject/livereduce
 %description
 There should be a meaninful description, but it is not needed quite yet.
 
-Requires:      python
+Requires: python
+%if 0%{?rhel}
+Requires: python-inotify
+%else
+Requires: python2-inotify
+%endif
 
 %{?python_provide:%python_provide python2-%{srcname}}
 
