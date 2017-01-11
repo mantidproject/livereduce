@@ -104,7 +104,9 @@ class Config(object):
         self.logger = logger or logging.getLogger(self.__class__.__name__)
 
         # read file from json into a dict
+        self.configfile = None
         if filename is not None and os.path.exists(filename):
+            self.configfile = filename
             self.logger.info('Loading configuration from \'%s\'' % filename)
             with open(filename, 'r') as handle:
                 json_doc = json.load(handle)
@@ -140,7 +142,12 @@ class Config(object):
                 self.logger.info('Using default instrument')
                 return ConfigService.getInstrument()
             else:
-                return ConfigService.getInstrument(str(instrument))
+                instrument = ConfigService.getInstrument(str(instrument))
+                facility = instrument.facility().name()
+                # set the facility if it isn't the default
+                if facility != ConfigService.getFacility().name():
+                    ConfigService.setFacility(facility)
+                return instrument
         except ImportError, e:
             self.logger.error('Failed to import mantid', exc_info=True)
             raise
