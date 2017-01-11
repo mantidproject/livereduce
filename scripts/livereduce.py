@@ -126,6 +126,8 @@ class Config(object):
         self.updateEvery = json_doc.get('update_every', 30) # in seconds
         self.preserveEvents = json_doc.get('preserve_events', True)
         self.accumMethod = str(json_doc.get('accum_method', 'Add'))
+        self.periods= json_doc.get('periods', None)
+        self.spectra = json_doc.get('spectra', None)
 
         # location of the scripts
         self.script_dir = json_doc.get('script_dir')
@@ -194,6 +196,12 @@ class Config(object):
             args['AccumulationWorkspace'] = 'accumulation'
             args['PostProcessingScriptFilename'] = self.postProcScript
 
+        if self.periods is not None:
+            args['PeriodList'] = self.periods
+
+        if self.spectra is not None:
+            args['spectra'] = self.spectra
+
         return args
 
     def toJson(self, **kwargs):
@@ -204,6 +212,12 @@ class Config(object):
                       preserve_events=self.preserveEvents,
                       post_process=(self.postProcScript is not None),
                       accum_method=self.accumMethod)
+
+        if self.periods is not None:
+            values['periods'] = self.periods
+
+        if self.spectra is not None:
+            values['spectra'] = self.spectra
 
         return json.dumps(values, **kwargs)
 
