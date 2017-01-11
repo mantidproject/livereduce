@@ -29,11 +29,10 @@ handler.setFormatter(logging.Formatter(format))
 logger.addHandler(handler)
 
 logger.info('logging started')
-####################
-# end of logging configuration
-####################
 
+####################
 class LiveDataManager(object):
+    '''class for handling ``StartLiveData`` and ``MonitorLiveData``'''
     logger = logger or logging.getLogger(self.__class__.__name__)
 
     def __init__(self, config):
@@ -59,7 +58,6 @@ class LiveDataManager(object):
             mantid.AlgorithmManager.cancelAll()
         else:
             cls.logger.info('mantid not initialized - nothing to cleanup')
-
 
 
 ####################
@@ -91,6 +89,7 @@ for signal_event in sig_name.keys():
 ####################
 
 
+####################
 class Config(object):
     '''
     Configuration storred in json format. The keys are:
