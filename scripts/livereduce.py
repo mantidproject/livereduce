@@ -155,6 +155,18 @@ class Config(object):
             self.logger.error('Failed to import mantid', exc_info=True)
             raise
 
+    def __validateStartLvieDataProps(self):
+        alg = mantid.AlgorithmManager.createUnmanaged('StartLiveData')
+        alg.initialize()
+
+        allowed = alg.getProperty('AccumulationMethod').allowedValues
+        if not self.accumMethod in allowed:
+            msg = 'accumulation method \'%s\' is not allowed ' \
+                  % self.accumMethod
+            msg += str(allowed)
+            raise RuntimeError(msg)
+
+
     def __determineScriptNames(self, tryPostProcess):
         filenameStart = 'reduce_%s_live' % str(self.instrument.shortName())
 
@@ -179,6 +191,7 @@ class Config(object):
                 self.logger.info(msg, 'not running post-proccessing')
 
     def toStartLiveArgs(self):
+        self.__validateStartLvieDataProps()
 
         args = dict(Instrument=self.instrument.name(),
                     UpdateEvery=self.updateEvery,
