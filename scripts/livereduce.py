@@ -125,6 +125,7 @@ class Config(object):
         self.instrument = self.__getInstrument(json_doc.get('instrument'))
         self.updateEvery = json_doc.get('update_every', 30) # in seconds
         self.preserveEvents = json_doc.get('preserve_events', True)
+        self.accumMethod = str(json_doc.get('accum_method', 'Add'))
 
         # location of the scripts
         self.script_dir = json_doc.get('script_dir')
@@ -181,6 +182,7 @@ class Config(object):
                     UpdateEvery=self.updateEvery,
                     PreserveEvents=self.preserveEvents,
                     ProcessingScriptFilename=self.procScript,
+                    AccumulationMethod=self.accumMethod,
                     OutputWorkspace='result')
 
 
@@ -200,7 +202,8 @@ class Config(object):
                       script_dir=self.script_dir,
                       update_every=self.updateEvery,
                       preserve_events=self.preserveEvents,
-                      post_process=(self.postProcScript is not None))
+                      post_process=(self.postProcScript is not None),
+                      accum_method=self.accumMethod)
 
         return json.dumps(values, **kwargs)
 
