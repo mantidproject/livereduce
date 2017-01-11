@@ -6,9 +6,6 @@ import signal
 import sys
 import time
 
-keep_running = True  # file-global variable to keep the interpreter running
-
-
 ####################
 # configure logging
 ####################
@@ -36,6 +33,33 @@ logger.info('logging started')
 # end of logging configuration
 ####################
 
+class LiveDataManager(object):
+    logger = logger or logging.getLogger(self.__class__.__name__)
+
+    def __init__(self, config):
+        self.config = config
+
+    def start(self):
+        liveArgs = self.config.toStartLiveArgs()
+        self.logger.info('StartLiveData('
+                         + json.dumps(liveArgs, sort_keys=True, indent=2)
+                         + ')')
+        try:
+            mantid.simpleapi.StartLiveData(**liveArgs)
+        except KeyboardInterrupt:
+            self.logger.info("interupted StartLiveData")
+            self.stop()
+            sys.exit(-1)
+
+    @classmethod
+    def stop(cls):
+        '''Determine if mantid is running and shuts it down'''
+        if 'mantid' in locals() or 'mantid' in globals():
+            cls.logger.info('stopping live data processing')
+            mantid.AlgorithmManager.cancelAll()
+        else:
+            cls.logger.info('mantid not initialized - nothing to cleanup')
+
 
 
 ####################
@@ -53,7 +77,7 @@ def sigterm_handler(sig_received, frame):
     msg = 'received %s(%d)' % (sig_name[sig_received], sig_received)
     # logger.debug( "SIGTERM received")
     logger.info(msg)
-    shutdown_mantid()
+    LiveDataManager.stop()
     if sig_received == signal.SIGINT:
         raise KeyboardInterrupt(msg)
     else:
@@ -65,15 +89,6 @@ for signal_event in sig_name.keys():
 ####################
 # end of signal handling
 ####################
-
-
-def shutdown_mantid():
-    '''Determine if mantid is running and shuts it down'''
-    keep_running = False
-
-    if 'AlgorithmManager' in locals() or 'AlgorithmManager' in globals():
-        logger.info('shutting down mantid')
-        AlgorithmManager.cancelAll()
 
 
 class Config(object):
@@ -200,25 +215,16 @@ logger.info('Configuration options: '
             + config.toJson(sort_keys=True, indent=2))
 
 # needs to happen after configuration is loaded
-from mantid import AlgorithmManager  # required for clean shutdown to work
-from mantid.simpleapi import StartLiveData
+import mantid
 
-# need handle to the `MonitorLiveData` algorithm or it only runs once
-liveArgs = config.toStartLiveArgs()
-logger.info('StartLiveData(' + json.dumps(liveArgs, sort_keys=True, indent=2)
-            + ')')
-
-try:
-    StartLiveData(**liveArgs)
-except KeyboardInterrupt:
-    logger.info("interupted StartLiveData")
-    shutdown_mantid()
-    sys.exit(-1)
+# start up the live data
+liveDataMgr = LiveDataManager(config)
+liveDataMgr.start()
 
 # need to keep the process going otherwise script will end after one chunk
-while keep_running:
+while True:
     time.sleep(2.0)
 
 # cleanup in the off chance that the script gets here
-shutdown_mantid()
+liveDataMgr.stop()
 sys.exit(0)
