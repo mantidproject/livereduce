@@ -140,7 +140,7 @@ class Config(object):
 
         self.script_dir = str(self.script_dir)
 
-        self.__determineScriptNames(json_doc.get('post_process', True))
+        self.__determineScriptNames()
 
     def __getInstrument(self, instrument):
         try:
@@ -170,7 +170,7 @@ class Config(object):
             msg += str(allowed)
             raise ValueError(msg)
 
-    def __determineScriptNames(self, tryPostProcess):
+    def __determineScriptNames(self):
         filenameStart = 'reduce_%s_live' % str(self.instrument.shortName())
 
         # script for processing each chunk
@@ -182,19 +182,9 @@ class Config(object):
             raise RuntimeError(msg)
 
         # script for processing accumulation
-        # None signifies nothing to be done in post-processing
-        self.postProcScript = None
-
-        if tryPostProcess:
-            self.postProcScript = filenameStart + '_post_proc.py'
-            self.postProcScript = os.path.join(self.script_dir,
-                                               self.postProcScript)
-            if not os.path.exists(self.postProcScript):
-                self.postProcScript = None
-                # TODO something goes here
-                msg = 'PostProcessingScriptFilename \'%s\' does not exist' % \
-                      self.postProcScript
-                self.logger.info(msg, 'not running post-proccessing')
+        self.postProcScript = filenameStart + '_post_proc.py'
+        self.postProcScript = os.path.join(self.script_dir,
+                                           self.postProcScript)
 
     def toStartLiveArgs(self):
         self.__validateStartLvieDataProps()
@@ -210,7 +200,7 @@ class Config(object):
         args['FromNow'] = False
         args['FromStartOfRun'] = True
 
-        if self.postProcScript is not None:
+        if os.path.exists(self.postProcScript):
             args['AccumulationWorkspace'] = 'accumulation'
             args['PostProcessingScriptFilename'] = self.postProcScript
 
@@ -223,21 +213,20 @@ class Config(object):
         return args
 
     def toJson(self, **kwargs):
-        values = dict(instrument=self.instrument.shortName(),
-                      mantid_loc=self.mantid_loc,
-                      script_dir=self.script_dir,
-                      update_every=self.updateEvery,
-                      preserve_events=self.preserveEvents,
-                      post_process=(self.postProcScript is not None),
-                      accum_method=self.accumMethod)
+        args = dict(instrument=self.instrument.shortName(),
+                    mantid_loc=self.mantid_loc,
+                    script_dir=self.script_dir,
+                    update_every=self.updateEvery,
+                    preserve_events=self.preserveEvents,
+                    accum_method=self.accumMethod)
 
         if self.periods is not None:
-            values['periods'] = self.periods
+            args['periods'] = self.periods
 
         if self.spectra is not None:
-            values['spectra'] = self.spectra
+            args['spectra'] = self.spectra
 
-        return json.dumps(values, **kwargs)
+        return json.dumps(args, **kwargs)
 
 
 ####################
@@ -247,20 +236,17 @@ class EventHandler(pyinotify.ProcessEvent):
     def __init__(self, config, livemanager):
         # files that we actual care about
         self.configfile = config.filename
-        self.scriptfiles = [config.procScript]
-        if config.postProcScript is not None:
-            self.scriptfiles.append(config.postProcScript)
+        self.scriptdir = config.script_dir
+        self.scriptfiles = [config.procScript, config.postProcScript]
 
         # thing controlling the actual work
         self.livemanager = livemanager
 
     def filestowatch(self):
-        result = self.scriptfiles[:]
-        result.append(self.configfile)
-        return result
+        return [self.scriptdir, self.configfile]
 
     def process_default(self, event):
-        self.logger.info(event.maskname + ' ' + event.pathname)
+        self.logger.info(event.maskname + ': \'' + event.pathname + '\'')
 
         if event.pathname == self.configfile:
             self.logger.warn('Modifying configuration file is not supported' +
@@ -301,7 +287,8 @@ liveDataMgr = LiveDataManager(config)
 handler = EventHandler(config, LiveDataManager(config))
 wm = pyinotify.WatchManager()
 notifier = pyinotify.Notifier(wm, handler)
-mask = pyinotify.IN_DELETE | pyinotify.IN_MODIFY  # watched events
+# watched events
+mask = pyinotify.IN_DELETE | pyinotify.IN_MODIFY | pyinotify.IN_CREATE
 logger.info("WATCHING", handler.filestowatch())
 wm.add_watch(handler.filestowatch(), mask)
 
