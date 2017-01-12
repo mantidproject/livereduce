@@ -2,6 +2,7 @@ from __future__ import (absolute_import, division, print_function)
 import json
 import logging
 import os
+import pyinotify
 import signal
 import sys
 import time
@@ -59,7 +60,6 @@ class LiveDataManager(object):
         else:
             cls.logger.info('mantid not initialized - nothing to cleanup')
 
-
 ####################
 # register a signal handler so we can exit gracefully if someone kills us
 ####################
@@ -104,9 +104,9 @@ class Config(object):
         self.logger = logger or logging.getLogger(self.__class__.__name__)
 
         # read file from json into a dict
-        self.configfile = None
+        self.filename = None
         if filename is not None and os.path.exists(filename):
-            self.configfile = filename
+            self.filename = os.path.abspath(filename)
             self.logger.info('Loading configuration from \'%s\'' % filename)
             with open(filename, 'r') as handle:
                 json_doc = json.load(handle)
@@ -123,7 +123,7 @@ class Config(object):
         sys.path.append(self.mantid_loc)
 
         self.instrument = self.__getInstrument(json_doc.get('instrument'))
-        self.updateEvery = json_doc.get('update_every', 30) # in seconds
+        self.updateEvery = int(json_doc.get('update_every', 30)) # in seconds
         self.preserveEvents = json_doc.get('preserve_events', True)
         self.accumMethod = str(json_doc.get('accum_method', 'Add'))
         self.periods= json_doc.get('periods', None)
@@ -134,6 +134,9 @@ class Config(object):
         if self.script_dir is None:
             self.script_dir = '/SNS/%s/shared/livereduce' % \
                               self.instrument.shortName()
+        else:
+            self.script_dir = os.path.abspath(self.script_dir)
+
         self.script_dir = str(self.script_dir)
 
         self.__determineScriptNames(json_doc.get('post_process', True))
@@ -164,7 +167,7 @@ class Config(object):
             msg = 'accumulation method \'%s\' is not allowed ' \
                   % self.accumMethod
             msg += str(allowed)
-            raise RuntimeError(msg)
+            raise ValueError(msg)
 
 
     def __determineScriptNames(self, tryPostProcess):
@@ -186,6 +189,7 @@ class Config(object):
                                                self.postProcScript)
             if not os.path.exists(self.postProcScript):
                 self.postProcScript = None
+                # TODO something goes here
                 msg = 'PostProcessingScriptFilename \'%s\' does not exist' % \
                       self.postProcScript
                 self.logger.info(msg, 'not running post-proccessing')
@@ -234,6 +238,48 @@ class Config(object):
 
         return json.dumps(values, **kwargs)
 
+####################
+class EventHandler(pyinotify.ProcessEvent):
+    logger = logger or logging.getLogger(self.__class__.__name__)
+
+    def __init__(self, config, livemanager):
+        # files that we actual care about
+        self.configfile = config.filename
+        self.scriptfiles = [config.procScript]
+        if config.postProcScript is not None:
+            self.scriptfiles.append(config.postProcScript)
+
+        # thing controlling the actual work
+        self.livemanager = livemanager
+
+    def filestowatch(self):
+        result = self.scriptfiles[:]
+        result.append(self.configfile)
+        return result
+
+    #def process_IN_DELETE(self, event):
+    #    print("******************** Delete:", event.pathname)
+
+    #def process_IN_MODIFY(self, event):
+    #    print("******************** Modify:", event.pathname)
+
+    def process_default(self, event):
+        self.logger.info(event.maskname + ' ' + event.pathname)
+
+        if event.pathname == self.configfile:
+            self.logger.warn('Modifying configuration file is not supported'
+                             + '- shutting down')
+            self.livemanager.stop()
+            raise KeyboardInterrupt('stop inotify')
+
+        if event.pathname in self.scriptfiles:
+            self.logger.info('Processing script \'' + event.pathname
+                             + '\' changed - restarting \'StartLiveData\'')
+            self.livemanager.stop()
+            time.sleep(1.)  # seconds
+            self.livemanager.start()
+
+
 # determine the configuration file
 config = ['/etc/livereduce.conf']
 if len(sys.argv) > 1:
@@ -253,13 +299,21 @@ logger.info('Configuration options: '
 # needs to happen after configuration is loaded
 import mantid
 
-# start up the live data
+# for passing into the eventhandler for inotify
 liveDataMgr = LiveDataManager(config)
+
+handler = EventHandler(config, LiveDataManager(config))
+wm = pyinotify.WatchManager()
+notifier = pyinotify.Notifier(wm, handler)
+mask = pyinotify.IN_DELETE | pyinotify.IN_MODIFY  # watched events
+logger.info("WATCHING", handler.filestowatch())
+wm.add_watch(handler.filestowatch(), mask)
+
+# start up the live data
 liveDataMgr.start()
 
-# need to keep the process going otherwise script will end after one chunk
-while True:
-    time.sleep(2.0)
+# inotify will keep the program running
+notifier.loop()
 
 # cleanup in the off chance that the script gets here
 liveDataMgr.stop()
