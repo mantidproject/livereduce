@@ -10,8 +10,8 @@ import time
 ####################
 # configure logging
 ####################
-LOG_NAME='livereduce'  # constant for logging
-LOG_FILE='/var/log/SNS_applications/livereduce.log'
+LOG_NAME = 'livereduce'  # constant for logging
+LOG_FILE = '/var/log/SNS_applications/livereduce.log'
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -31,19 +31,20 @@ logger.addHandler(handler)
 
 logger.info('logging started')
 
+
 ####################
 class LiveDataManager(object):
     '''class for handling ``StartLiveData`` and ``MonitorLiveData``'''
-    logger = logger or logging.getLogger(self.__class__.__name__)
+    logger = logger or logging.getLogger('LiveDataManager')
 
     def __init__(self, config):
         self.config = config
 
     def start(self):
         liveArgs = self.config.toStartLiveArgs()
-        self.logger.info('StartLiveData('
-                         + json.dumps(liveArgs, sort_keys=True, indent=2)
-                         + ')')
+        self.logger.info('StartLiveData(' +
+                         json.dumps(liveArgs, sort_keys=True, indent=2) +
+                         ')')
         try:
             mantid.simpleapi.StartLiveData(**liveArgs)
         except KeyboardInterrupt:
@@ -101,7 +102,7 @@ class Config(object):
 
     def __init__(self, filename):
         '''Optional arguemnt is the json formatted config file'''
-        self.logger = logger or logging.getLogger(self.__class__.__name__)
+        self.logger = logger or logging.getLogger('Config')
 
         # read file from json into a dict
         self.filename = None
@@ -123,10 +124,10 @@ class Config(object):
         sys.path.append(self.mantid_loc)
 
         self.instrument = self.__getInstrument(json_doc.get('instrument'))
-        self.updateEvery = int(json_doc.get('update_every', 30)) # in seconds
+        self.updateEvery = int(json_doc.get('update_every', 30))  # in seconds
         self.preserveEvents = json_doc.get('preserve_events', True)
         self.accumMethod = str(json_doc.get('accum_method', 'Add'))
-        self.periods= json_doc.get('periods', None)
+        self.periods = json_doc.get('periods', None)
         self.spectra = json_doc.get('spectra', None)
 
         # location of the scripts
@@ -154,7 +155,7 @@ class Config(object):
                 if facility != ConfigService.getFacility().name():
                     ConfigService.setFacility(facility)
                 return instrument
-        except ImportError, e:
+        except ImportError:
             self.logger.error('Failed to import mantid', exc_info=True)
             raise
 
@@ -163,12 +164,11 @@ class Config(object):
         alg.initialize()
 
         allowed = alg.getProperty('AccumulationMethod').allowedValues
-        if not self.accumMethod in allowed:
+        if self.accumMethod not in allowed:
             msg = 'accumulation method \'%s\' is not allowed ' \
                   % self.accumMethod
             msg += str(allowed)
             raise ValueError(msg)
-
 
     def __determineScriptNames(self, tryPostProcess):
         filenameStart = 'reduce_%s_live' % str(self.instrument.shortName())
@@ -182,7 +182,9 @@ class Config(object):
             raise RuntimeError(msg)
 
         # script for processing accumulation
-        self.postProcScript = None  # signifies nothing to be done in post-processing
+        # None signifies nothing to be done in post-processing
+        self.postProcScript = None
+
         if tryPostProcess:
             self.postProcScript = filenameStart + '_post_proc.py'
             self.postProcScript = os.path.join(self.script_dir,
@@ -203,7 +205,6 @@ class Config(object):
                     ProcessingScriptFilename=self.procScript,
                     AccumulationMethod=self.accumMethod,
                     OutputWorkspace='result')
-
 
         # these must be in agreement with each other
         args['FromNow'] = False
@@ -238,9 +239,10 @@ class Config(object):
 
         return json.dumps(values, **kwargs)
 
+
 ####################
 class EventHandler(pyinotify.ProcessEvent):
-    logger = logger or logging.getLogger(self.__class__.__name__)
+    logger = logger or logging.getLogger('EventHandler')
 
     def __init__(self, config, livemanager):
         # files that we actual care about
@@ -257,24 +259,18 @@ class EventHandler(pyinotify.ProcessEvent):
         result.append(self.configfile)
         return result
 
-    #def process_IN_DELETE(self, event):
-    #    print("******************** Delete:", event.pathname)
-
-    #def process_IN_MODIFY(self, event):
-    #    print("******************** Modify:", event.pathname)
-
     def process_default(self, event):
         self.logger.info(event.maskname + ' ' + event.pathname)
 
         if event.pathname == self.configfile:
-            self.logger.warn('Modifying configuration file is not supported'
-                             + '- shutting down')
+            self.logger.warn('Modifying configuration file is not supported' +
+                             '- shutting down')
             self.livemanager.stop()
             raise KeyboardInterrupt('stop inotify')
 
         if event.pathname in self.scriptfiles:
-            self.logger.info('Processing script \'' + event.pathname
-                             + '\' changed - restarting \'StartLiveData\'')
+            self.logger.info('Processing script \'' + event.pathname +
+                             '\' changed - restarting \'StartLiveData\'')
             self.livemanager.stop()
             time.sleep(1.)  # seconds
             self.livemanager.start()
@@ -293,8 +289,8 @@ else:
 
 # convert configuration from filename to object and print it out
 config = Config(config)
-logger.info('Configuration options: '
-            + config.toJson(sort_keys=True, indent=2))
+logger.info('Configuration options: ' +
+            config.toJson(sort_keys=True, indent=2))
 
 # needs to happen after configuration is loaded
 import mantid
