@@ -28,9 +28,15 @@ This package uses a hand-written spec file for releasing on rpm based systems ra
 
 And look for the results in the `dist` directory.
 
-Acknowledgements
-----------------
+This package depends on
+[pyinotify](https://github.com/seb-m/pyinotify) and (of course)
+[mantid](http://www.mantidproject.org).
+
+Acknowledgements and other links
+--------------------------------
 Information and ideas taken from:
 * [StatisticsService](https://github.com/neutrons/StatisticsService)
 * [autoreduce](https://github.com/mantidproject/autoreduce)
 * [post_processing_agent](https://github.com/neutrons/post_processing_agent)
+* [Logging in python](https://fangpenlin.com/posts/2012/08/26/good-logging-practice-in-python/)
+* [systemd](https://fangpenlin.com/posts/2012/08/26/good-logging-practice-in-python/) and [systemd.service](https://www.freedesktop.org/software/systemd/man/systemd.service.html)
