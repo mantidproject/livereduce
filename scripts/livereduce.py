@@ -29,7 +29,7 @@ handler.setFormatter(logging.Formatter(format))
 # add the handlers to the logger
 logger.addHandler(handler)
 
-logger.info('logging started')
+logger.info('logging started by user \'' + os.environ['USER'] + '\'')
 
 
 ####################
@@ -79,6 +79,8 @@ def sigterm_handler(sig_received, frame):
     LiveDataManager.stop()
     if sig_received == signal.SIGINT:
         raise KeyboardInterrupt(msg)
+    elif sig_received == signal.SIGTERM:
+        sys.exit(0)
     else:
         raise RuntimeError(msg)
 
@@ -246,7 +248,9 @@ class EventHandler(pyinotify.ProcessEvent):
         return [self.scriptdir, self.configfile]
 
     def process_default(self, event):
-        self.logger.info(event.maskname + ': \'' + event.pathname + '\'')
+        if event.pathname == self.configfile or \
+           event.pathname in self.scriptfiles:
+            self.logger.info(event.maskname + ': \'' + event.pathname + '\'')
 
         if event.pathname == self.configfile:
             self.logger.warn('Modifying configuration file is not supported' +
