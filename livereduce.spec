@@ -24,6 +24,8 @@ BuildArch: noarch
 Vendor: Pete Peterson
 Url: https://github.com/mantidproject/livereduce
 
+BuildRequires: python python-setuptools
+
 %description
 There should be a meaninful description, but it is not needed quite yet.
 
