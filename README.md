@@ -16,6 +16,31 @@ The logfile is `/var/log/SNS_applications/livereduce.log` if run as
 the user `snsdata`, or `livereduce.log` in the current working
 directory (if run from the command line).
 
+The script files that are used/looked for are
+
+* `<script_dir>/reduce_<instrument>_proc.py` is the processing script
+  (for each chunk). This is required.
+* `<script_dir>/reduce_<instrument>_post_proc.py` is the
+  post-processing script (for the accumulated data). To disable this
+  step rename the python script so it is not found by the daemon.
+
+Example filenames for NOMAD with default script location is
+`/SNS/NOM/shared/livereduce/reduce_NOM_live_proc.py` and
+`/SNS/NOM/shared/livereduce/reduce_NOM_live_post_proc.py`.
+
+Behavior
+--------
+
+The daemon will immediately cancel
+[StartLiveData](http://docs.mantidproject.org/nightly/algorithms/StartLiveData-v1.html)
+and
+[MonitorLiveData](http://docs.mantidproject.org/nightly/algorithms/MonitorLiveData-v1.html)
+and restart them when one of processing scripts is changed or
+removed. This is to be resilient against changes in the scripts.
+
+The process will exit and systemd will restart it if the configuration
+file is changed. This is done in case the version of mantid wanted is
+changed.
 
 Building and packaging
 ----------------------
