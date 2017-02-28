@@ -12,9 +12,17 @@ attempted to be determined from the environment. A minimal configuration to spec
 ```
 For testing a configuration file can be supplied as a command line argument.
 
-The logfile is `/var/log/SNS_applications/livereduce.log` if run as
-the user `snsdata`, or `livereduce.log` in the current working
-directory (if run from the command line).
+The logfile of what was setup for running, as well as other messages, is
+`/var/log/SNS_applications/livereduce.log` if run as the user `snsdata`,
+or `livereduce.log` in the current working directory (if run from the 
+command line).
+
+If run from inside `systemd`, use the standard
+```
+sudo service livereduce status -l -n 25
+```
+to see the last 25 lines (`-n 25`) mantid wrote to `stdout` with the full
+information for each line (`-l`).
 
 The script files that are used/looked for are
 
