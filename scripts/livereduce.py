@@ -108,7 +108,8 @@ class Config(object):
 
         # read file from json into a dict
         self.filename = None
-        if filename is not None and os.path.exists(filename):
+        if filename is not None and os.path.exists(filename) \
+           and os.path.getsize(filename) > 0:
             self.filename = os.path.abspath(filename)
             self.logger.info('Loading configuration from \'%s\'' % filename)
             with open(filename, 'r') as handle:
@@ -183,6 +184,11 @@ class Config(object):
                   self.procScript
             raise RuntimeError(msg)
 
+        if os.path.getsize(self.procScript) <= 0:
+            msg = 'ProcessingScriptFilename \'%s\' is empty' % \
+                  self.procScript
+            raise RuntimeError(msg)
+
         # script for processing accumulation
         self.postProcScript = filenameStart + '_post_proc.py'
         self.postProcScript = os.path.join(self.script_dir,
@@ -202,7 +208,7 @@ class Config(object):
         args['FromNow'] = False
         args['FromStartOfRun'] = True
 
-        if os.path.exists(self.postProcScript):
+        if os.path.exists(self.postProcScript) and os.path.getsize(self.postProcScript) > 0:
             args['AccumulationWorkspace'] = 'accumulation'
             args['PostProcessingScriptFilename'] = self.postProcScript
 
@@ -271,7 +277,7 @@ config = ['/etc/livereduce.conf']
 if len(sys.argv) > 1:
     config.insert(0, sys.argv[1])
 config = [filename for filename in config
-          if os.path.exists(filename)]
+          if os.path.exists(filename) and os.path.getsize(filename) > 0]
 if len(config) > 0:
     config = config[0]
 else:
