@@ -10,11 +10,14 @@ attempted to be determined from the environment. A minimal configuration to spec
   "mantid_loc": "/opt/mantidnightly/bin"
 }
 ```
-For testing a configuration file can be supplied as a command line argument.
+For testing a configuration file can be supplied as a command line argument when running
+```shell
+$ python scripts/livereduce.py ./livereduce.conf
+```
 
 The logfile of what was setup for running, as well as other messages, is
 `/var/log/SNS_applications/livereduce.log` if run as the user `snsdata`,
-or `livereduce.log` in the current working directory (if run from the 
+or `livereduce.log` in the current working directory (if run from the
 command line).
 
 If run from inside `systemd`, use the standard
@@ -64,6 +67,18 @@ And look for the results in the `dist` directory.
 This package depends on
 [pyinotify](https://github.com/seb-m/pyinotify) and (of course)
 [mantid](http://www.mantidproject.org).
+
+Python 3 compatibility
+----------------------
+
+`livereduce.py` is python2/3 compatible. Because
+the [`livereduce.service`](livereduce.service) file is written to use
+system python, whether it is actually using python 2 or 3 will depend
+on your system's default python. The other thing to note, is that
+`livereduce.py` imports mantid directly in its namespace so you must
+run `livereduce.py` using the same python that mantid was built
+against.
+
 
 Acknowledgements and other links
 --------------------------------
