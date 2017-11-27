@@ -20,8 +20,14 @@ The logfile of what was setup for running, as well as other messages, is
 or `livereduce.log` in the current working directory (if run from the
 command line).
 
-If run from inside `systemd`, use the standard
+If run from inside `systemd`, use the standard commands for starting and stopping it.
+```shell
+sudo service livereduce start
+sudo service livereduce stop
+sudo service livereduce restart
 ```
+The status of the service can be found via
+```shell
 sudo service livereduce status -l -n 25
 ```
 to see the last 25 lines (`-n 25`) mantid wrote to `stdout` with the full
