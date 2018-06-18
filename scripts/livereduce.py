@@ -124,7 +124,7 @@ class Config(object):
             self.mantid_loc = os.environ.get('MANTIDPATH')
             if self.mantid_loc is None:
                 self.mantid_loc = '/opt/Mantid/bin/'
-        sys.path.append(self.mantid_loc)
+        sys.path.insert(0, self.mantid_loc)
 
         self.instrument = self.__getInstrument(json_doc.get('instrument'))
         self.updateEvery = int(json_doc.get('update_every', 30))  # in seconds
