@@ -3,7 +3,7 @@ import os
 import sys
 
 setup(name="livereduce",
-      version="1.2",
+      version="1.3",
       description = "Need a description",
       author = "Pete Peterson",
       author_email = "petersonpf@ornl.gov",
