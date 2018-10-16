@@ -6,7 +6,7 @@ WorkingDirectory=/tmp
 User=snsdata
 ExecStart=/usr/bin/python /usr/bin/livereduce.py
 Restart=always
-StartLimitInterval=86400
+StartLimitInterval=8640
 StartLimitBurst=1000
 RestartSec=10
 
