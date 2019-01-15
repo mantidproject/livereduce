@@ -162,7 +162,7 @@ class Config(object):
             self.logger.error('Failed to import mantid', exc_info=True)
             raise
 
-    def __validateStartLvieDataProps(self):
+    def __validateStartLiveDataProps(self):
         alg = mantid.AlgorithmManager.createUnmanaged('StartLiveData')
         alg.initialize()
 
@@ -195,7 +195,7 @@ class Config(object):
                                            self.postProcScript)
 
     def toStartLiveArgs(self):
-        self.__validateStartLvieDataProps()
+        self.__validateStartLiveDataProps()
 
         args = dict(Instrument=self.instrument.name(),
                     UpdateEvery=self.updateEvery,
@@ -208,7 +208,8 @@ class Config(object):
         args['FromNow'] = False
         args['FromStartOfRun'] = True
 
-        if os.path.exists(self.postProcScript) and os.path.getsize(self.postProcScript) > 0:
+        if os.path.exists(self.postProcScript) \
+           and os.path.getsize(self.postProcScript) > 0:
             args['AccumulationWorkspace'] = 'accumulation'
             args['PostProcessingScriptFilename'] = self.postProcScript
 
@@ -288,8 +289,12 @@ config = Config(config)
 logger.info('Configuration options: ' +
             config.toJson(sort_keys=True, indent=2))
 
-# needs to happen after configuration is loaded
-import mantid
+# importing mantid needs to happen after configuration is loaded
+from mantid.kernel import UsageService  # noqa
+# to differentiate from other apps
+UsageService.setApplicationName('livereduce')
+import mantid  # noqa
+import mantid.simpleapi  # noqa
 
 # for passing into the eventhandler for inotify
 liveDataMgr = LiveDataManager(config)
