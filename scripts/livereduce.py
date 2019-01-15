@@ -114,9 +114,11 @@ class Config(object):
             self.logger.info('Loading configuration from \'%s\'' % filename)
             with open(filename, 'r') as handle:
                 json_doc = json.load(handle)
+            logger.debug(json.dumps(json_doc))
         else:
             self.logger.info('Using default configuration')
             json_doc = dict()
+        self.logger.info('Finished parsing configuration')
 
         # get mantid location and add to the python path
         self.mantid_loc = json_doc.get('mantid_loc')
@@ -125,8 +127,19 @@ class Config(object):
             if self.mantid_loc is None:
                 self.mantid_loc = '/opt/Mantid/bin/'
         sys.path.insert(0, self.mantid_loc)
+        #os.environ['MANTIDPATH'] = self.mantid_loc
+        self.logger.info('self.mantid_loc="{}"'.format(self.mantid_loc))
+        self.logger.info(str(sys.path))
+        try:
+            from mantid.kernel import UsageService  # noqa
+            # to differentiate from other apps
+            UsageService.setApplicationName('livereduce')
+        except:
+            self.logger.error('General errror while importing mantid.kernel.ConfigService:', exc_info=True)
+            raise
 
         self.instrument = self.__getInstrument(json_doc.get('instrument'))
+        self.logger.info('self.instrument="{}"'.format(self.instrument))
         self.updateEvery = int(json_doc.get('update_every', 30))  # in seconds
         self.preserveEvents = json_doc.get('preserve_events', True)
         self.accumMethod = str(json_doc.get('accum_method', 'Add'))
@@ -144,14 +157,16 @@ class Config(object):
         self.script_dir = str(self.script_dir)
 
         self.__determineScriptNames()
+        self.logger.info('bottom of Config.__init__({})'.format(filename))
 
     def __getInstrument(self, instrument):
         try:
-            from mantid import ConfigService
+            from mantid.kernel import ConfigService
             if instrument is None:
                 self.logger.info('Using default instrument')
                 return ConfigService.getInstrument()
             else:
+                self.logger.info('Converting instrument using ConfigService')
                 instrument = ConfigService.getInstrument(str(instrument))
                 facility = instrument.facility().name()
                 # set the facility if it isn't the default
@@ -159,7 +174,10 @@ class Config(object):
                     ConfigService.setFacility(facility)
                 return instrument
         except ImportError:
-            self.logger.error('Failed to import mantid', exc_info=True)
+            self.logger.error('Failed to import mantid.ConfigService', exc_info=True)
+            raise
+        except:
+            self.logger.error('General errror while getting instrument', exc_info=True)
             raise
 
     def __validateStartLiveDataProps(self):
@@ -290,9 +308,6 @@ logger.info('Configuration options: ' +
             config.toJson(sort_keys=True, indent=2))
 
 # importing mantid needs to happen after configuration is loaded
-from mantid.kernel import UsageService  # noqa
-# to differentiate from other apps
-UsageService.setApplicationName('livereduce')
 import mantid  # noqa
 import mantid.simpleapi  # noqa
 
