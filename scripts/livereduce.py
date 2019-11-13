@@ -1,5 +1,6 @@
 from __future__ import (absolute_import, division, print_function)
 import json
+from hashlib import md5
 import logging
 import os
 import pyinotify
@@ -7,9 +8,9 @@ import signal
 import sys
 import time
 
-####################
+# ##################
 # configure logging
-####################
+# ##################
 LOG_NAME = 'livereduce'  # constant for logging
 LOG_FILE = '/var/log/SNS_applications/livereduce.log'
 logger = logging.getLogger(__name__)
@@ -32,7 +33,7 @@ logger.addHandler(handler)
 logger.info('logging started by user \'' + os.environ['USER'] + '\'')
 
 
-####################
+# ##################
 class LiveDataManager(object):
     '''class for handling ``StartLiveData`` and ``MonitorLiveData``'''
     logger = logger or logging.getLogger('LiveDataManager')
@@ -61,9 +62,9 @@ class LiveDataManager(object):
         else:
             cls.logger.info('mantid not initialized - nothing to cleanup')
 
-####################
+# ##################
 # register a signal handler so we can exit gracefully if someone kills us
-####################
+# ##################
 # signal.SIGHUP - hangup does nothing
 # signal.SIGSTOP - doesn't want to register
 # signal.SIGKILL - doesn't want to register
@@ -127,7 +128,6 @@ class Config(object):
             if self.mantid_loc is None:
                 self.mantid_loc = '/opt/Mantid/bin/'
         sys.path.insert(0, self.mantid_loc)
-        #os.environ['MANTIDPATH'] = self.mantid_loc
         self.logger.info('self.mantid_loc="{}"'.format(self.mantid_loc))
         self.logger.info(str(sys.path))
         try:
@@ -135,7 +135,8 @@ class Config(object):
             # to differentiate from other apps
             UsageService.setApplicationName('livereduce')
         except:
-            self.logger.error('General errror while importing mantid.kernel.ConfigService:', exc_info=True)
+            self.logger.error('General errror while importing '
+                              'mantid.kernel.ConfigService:', exc_info=True)
             raise
 
         self.instrument = self.__getInstrument(json_doc.get('instrument'))
@@ -174,10 +175,12 @@ class Config(object):
                     ConfigService.setFacility(facility)
                 return instrument
         except ImportError:
-            self.logger.error('Failed to import mantid.ConfigService', exc_info=True)
+            self.logger.error('Failed to import mantid.ConfigService',
+                              exc_info=True)
             raise
         except:
-            self.logger.error('General errror while getting instrument', exc_info=True)
+            self.logger.error('General errror while getting instrument',
+                              exc_info=True)
             raise
 
     def __validateStartLiveDataProps(self):
@@ -264,31 +267,50 @@ class EventHandler(pyinotify.ProcessEvent):
         # files that we actual care about
         self.configfile = config.filename
         self.scriptdir = config.script_dir
-        self.scriptfiles = [config.procScript, config.postProcScript]
+
+        # key=filename
+        # value=md5sum of contents to track if file actually changed
+        self.scriptfiles = {config.procScript:
+                            self._md5(config.procScript),
+                            config.postProcScript:
+                            self._md5(config.postProcScript)}
 
         # thing controlling the actual work
         self.livemanager = livemanager
+
+    def _md5(self, filename):
+        if filename:
+            return md5(open(filename, 'rb').read()).hexdigest()
+        else:
+            return ''
 
     def filestowatch(self):
         return [self.scriptdir, self.configfile]
 
     def process_default(self, event):
-        if event.pathname == self.configfile or \
-           event.pathname in self.scriptfiles:
-            self.logger.info(event.maskname + ': \'' + event.pathname + '\'')
-
+        # changing the config file means just restart
         if event.pathname == self.configfile:
             self.logger.warn('Modifying configuration file is not supported' +
                              '- shutting down')
             self.livemanager.stop()
             raise KeyboardInterrupt('stop inotify')
 
-        if event.pathname in self.scriptfiles:
-            self.logger.info('Processing script \'' + event.pathname +
-                             '\' changed - restarting \'StartLiveData\'')
-            self.livemanager.stop()
-            time.sleep(1.)  # seconds
-            self.livemanager.start()
+        # changing the (post) processing script means restart LiveDataManager
+        # with new scripts
+        if event.pathname in self.scriptfiles.keys():
+            newmd5 = self._md5(event.pathname)
+            if newmd5 == self.scriptfiles[event.pathname]:
+                self.logger.info('Processing script "{}" has not changed md5'
+                                 'sum - continuing'.format(event.pathname))
+            else:
+                # update the md5 sum associated with the file
+                self.scriptfiles[event.pathname] = newmd5
+                # restart the service
+                self.logger.info('Processing script "{}" changed - restarting '
+                                 '"StartLiveData"'.format(event.pathname))
+                self.livemanager.stop()
+                time.sleep(1.)  # seconds
+                self.livemanager.start()
 
 
 # determine the configuration file
@@ -319,7 +341,7 @@ wm = pyinotify.WatchManager()
 notifier = pyinotify.Notifier(wm, handler)
 # watched events
 mask = pyinotify.IN_DELETE | pyinotify.IN_MODIFY | pyinotify.IN_CREATE
-logger.info("WATCHING", handler.filestowatch())
+logger.info("WATCHING:{}".format(handler.filestowatch()))
 wm.add_watch(handler.filestowatch(), mask)
 
 # start up the live data
