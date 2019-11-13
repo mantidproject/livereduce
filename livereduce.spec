@@ -12,7 +12,7 @@
 
 Summary: %{summary}
 Name: python-%{srcname}
-Version: 1.4
+Version: 1.5
 Release: %{release}%{?dist}
 Source0: %{srcname}-%{version}.tar.gz
 License: MIT
