@@ -31,7 +31,9 @@ The status of the service can be found via
 sudo service livereduce status -l -n 25
 ```
 to see the last 25 lines (`-n 25`) mantid wrote to `stdout` with the full
-information for each line (`-l`).
+information for each line (`-l`). People with extra permissions can run
+``sudo journalctl -u livereduce -f`` and see all of the logs without them
+flushing on restart of the service.
 
 The script files that are used/looked for are
 

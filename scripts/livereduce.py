@@ -127,7 +127,12 @@ class Config(object):
             self.mantid_loc = os.environ.get('MANTIDPATH')
             if self.mantid_loc is None:
                 self.mantid_loc = '/opt/Mantid/bin/'
-        sys.path.insert(0, self.mantid_loc)
+        # strip off the trailing 'bin'
+        self.mantid_loc = self.mantid_loc.replace('/bin', '')
+        # add bin and lib directories
+        sys.path.insert(0, os.path.join(self.mantid_loc, 'lib'))
+        sys.path.insert(0, os.path.join(self.mantid_loc, 'bin'))
+        # log the mantid location
         self.logger.info('self.mantid_loc="{}"'.format(self.mantid_loc))
         self.logger.info(str(sys.path))
         try:

@@ -1,18 +1,11 @@
 %global srcname livereduce
 %global summary Daemon for running live data reduction with systemd
-# RHEL doesn't know about __python2
-%{!?__python2: %define __python2 %{__python}}
-%if 0%{?rhel}
-  %define with_python3 0
-%else
-  %define with_python3 1
-%endif
-
+# This only supports python3
 %define release 1
 
 Summary: %{summary}
 Name: python-%{srcname}
-Version: 1.5
+Version: 1.6
 Release: %{release}%{?dist}
 Source0: %{srcname}-%{version}.tar.gz
 License: MIT
@@ -23,31 +16,27 @@ BuildArch: noarch
 Vendor: Pete Peterson
 Url: https://github.com/mantidproject/livereduce
 
-BuildRequires: python python-setuptools
+BuildRequires: python%{python3_pkgversion} python%{python3_pkgversion}-setuptools
+
+Requires: python%{python3_pkgversion}
+Requires: python3-inotify
 
 %description
 There should be a meaninful description, but it is not needed quite yet.
 
-Requires: python
-%if 0%{?rhel}
-Requires: python-inotify
-%else
-Requires: python2-inotify
-%endif
-
-%{?python_provide:%python_provide python2-%{srcname}}
+%{?python_provide:%python_provide python-%{srcname}}
 
 %prep
 %setup -n %{srcname}-%{version} -n %{srcname}-%{version}
 
 %build
-%py2_build
+%py3_build
 
 %install
-%py2_install
+%py3_install
 
 %check
-%{__python2} setup.py test
+%{__python3} setup.py test
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -62,6 +51,6 @@ rm -f /var/log/SNS_applications/livereduce.log*
 
 %files
 %doc README.md
-%{python2_sitelib}/*
+%{python3_sitelib}/*
 %{_bindir}/livereduce.py
 %{_prefix}/lib/systemd/system/livereduce.service
