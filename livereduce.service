@@ -3,12 +3,15 @@ Description=Live processing service
 
 [Service]
 WorkingDirectory=/tmp
-User=snsdata
-ExecStart=/usr/bin/python3 /usr/bin/livereduce.py
+# DEBUG: substitute jbq with snsdata
+User=jbq
+ExecStart=/home/jbq/repositories/GitHub/mantidproject/livereduce/scripts/livereduce.sh
 Restart=always
+# StartLimitInterval and StartLimitBurst were moved to [Unit] in systemd version 241
 StartLimitInterval=8640
 StartLimitBurst=1000
-RestartSec=10
+# DEBUG: substitute back to 10
+RestartSec=60
 
 [Install]
 WantedBy=multi-user.target

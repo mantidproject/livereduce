@@ -85,6 +85,7 @@ def sigterm_handler(sig_received, frame):
     else:
         raise RuntimeError(msg)
 
+
 for signal_event in sig_name.keys():
     logger.debug('registering '+str(signal_event))
     signal.signal(signal_event, sigterm_handler)
@@ -96,10 +97,11 @@ for signal_event in sig_name.keys():
 ####################
 class Config(object):
     '''
-    Configuration storred in json format. The keys are:
+    Configuration stored in json format. The keys are:
     * 'instrument' - default from ~/.mantid/Mantid.user.properties
     * 'mantid_loc' - if not specified, goes to environment variable
       ${MANTIDPATH} then defaults to '/opt/Mantid/bin/'
+    * 'CONDA_ENV' - if not specified, defaults to 'mantid'
     * 'script_dir' - default value is '/SNS/{instrument}/shared/livereduce'
     '''
 
@@ -269,7 +271,7 @@ class EventHandler(pyinotify.ProcessEvent):
     logger = logger or logging.getLogger('EventHandler')
 
     def __init__(self, config, livemanager):
-        # files that we actual care about
+        # files that we actually care about
         self.configfile = config.filename
         self.scriptdir = config.script_dir
 
