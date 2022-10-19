@@ -19,7 +19,6 @@ Url: https://github.com/mantidproject/livereduce
 BuildRequires: python%{python3_pkgversion} python%{python3_pkgversion}-setuptools
 
 Requires: python%{python3_pkgversion}
-Requires: python3-inotify
 Requires: jq
 
 %description
