@@ -2,8 +2,8 @@ from __future__ import (absolute_import, division, print_function)
 import json
 from hashlib import md5
 import logging
-import mantid
-import mantid.simpleapi
+import mantid  # for clearer error message
+from mantid.simpleapi import StartLiveData
 import os
 import pyinotify
 import signal
@@ -50,7 +50,7 @@ class LiveDataManager(object):
                          json.dumps(liveArgs, sort_keys=True, indent=2) +
                          ')')
         try:
-            mantid.simpleapi.StartLiveData(**liveArgs)
+            StartLiveData(**liveArgs)
         except KeyboardInterrupt:
             self.logger.info("interupted StartLiveData")
             self.stop()
