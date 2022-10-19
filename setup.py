@@ -1,9 +1,7 @@
 from setuptools import setup, find_packages
-import os
-import sys
 
 setup(name="livereduce",
-      version="1.6",
+      version="1.7",
       description = "Need a description",
       author = "Pete Peterson",
       author_email = "petersonpf@ornl.gov",
