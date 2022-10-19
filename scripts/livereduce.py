@@ -33,6 +33,7 @@ handler.setFormatter(logging.Formatter(format))
 logger.addHandler(handler)
 
 logger.info('logging started by user \'' + os.environ['USER'] + '\'')
+logger.info(f"using python interpreter {sys.executable}")
 
 
 # ##################
