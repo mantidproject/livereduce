@@ -2,6 +2,8 @@ from __future__ import (absolute_import, division, print_function)
 import json
 from hashlib import md5
 import logging
+import mantid  # for clearer error message
+from mantid.simpleapi import StartLiveData
 import os
 import pyinotify
 import signal
@@ -31,6 +33,7 @@ handler.setFormatter(logging.Formatter(format))
 logger.addHandler(handler)
 
 logger.info('logging started by user \'' + os.environ['USER'] + '\'')
+logger.info(f"using python interpreter {sys.executable}")
 
 
 # ##################
@@ -47,7 +50,7 @@ class LiveDataManager(object):
                          json.dumps(liveArgs, sort_keys=True, indent=2) +
                          ')')
         try:
-            mantid.simpleapi.StartLiveData(**liveArgs)
+            StartLiveData(**liveArgs)
         except KeyboardInterrupt:
             self.logger.info("interupted StartLiveData")
             self.stop()
@@ -61,6 +64,7 @@ class LiveDataManager(object):
             mantid.AlgorithmManager.cancelAll()
         else:
             cls.logger.info('mantid not initialized - nothing to cleanup')
+
 
 # ##################
 # register a signal handler so we can exit gracefully if someone kills us
@@ -85,6 +89,7 @@ def sigterm_handler(sig_received, frame):
     else:
         raise RuntimeError(msg)
 
+
 for signal_event in sig_name.keys():
     logger.debug('registering '+str(signal_event))
     signal.signal(signal_event, sigterm_handler)
@@ -95,16 +100,15 @@ for signal_event in sig_name.keys():
 
 ####################
 class Config(object):
-    '''
-    Configuration storred in json format. The keys are:
+    r"""
+    Configuration stored in json format. The keys are:
     * 'instrument' - default from ~/.mantid/Mantid.user.properties
-    * 'mantid_loc' - if not specified, goes to environment variable
-      ${MANTIDPATH} then defaults to '/opt/Mantid/bin/'
+    * 'CONDA_ENV' - if not specified, defaults to 'mantid-dev'
     * 'script_dir' - default value is '/SNS/{instrument}/shared/livereduce'
-    '''
+    """
 
     def __init__(self, filename):
-        '''Optional arguemnt is the json formatted config file'''
+        r"""Optional argument is the json formatted config file"""
         self.logger = logger or logging.getLogger('Config')
 
         # read file from json into a dict
@@ -121,26 +125,17 @@ class Config(object):
             json_doc = dict()
         self.logger.info('Finished parsing configuration')
 
-        # get mantid location and add to the python path
-        self.mantid_loc = json_doc.get('mantid_loc')
-        if self.mantid_loc is None:
-            self.mantid_loc = os.environ.get('MANTIDPATH')
-            if self.mantid_loc is None:
-                self.mantid_loc = '/opt/Mantid/bin/'
-        # strip off the trailing 'bin'
-        self.mantid_loc = self.mantid_loc.replace('/bin', '')
-        # add bin and lib directories
-        sys.path.insert(0, os.path.join(self.mantid_loc, 'lib'))
-        sys.path.insert(0, os.path.join(self.mantid_loc, 'bin'))
-        # log the mantid location
-        self.logger.info('self.mantid_loc="{}"'.format(self.mantid_loc))
-        self.logger.info(str(sys.path))
+        # log the conda environment and mantid's location
+        self.conda_env = json_doc.get("CONDA_ENV", "mantid-dev")
+        self.logger.info("CONDA_ENV = {}".format(self.conda_env))
+        self.logger.info('mantid_loc="{}"'.format(os.path.dirname(mantid.__file__)))
+
         try:
             from mantid.kernel import UsageService  # noqa
             # to differentiate from other apps
             UsageService.setApplicationName('livereduce')
-        except:
-            self.logger.error('General errror while importing '
+        except Exception:
+            self.logger.error('General error while importing '
                               'mantid.kernel.ConfigService:', exc_info=True)
             raise
 
@@ -249,7 +244,7 @@ class Config(object):
 
     def toJson(self, **kwargs):
         args = dict(instrument=self.instrument.shortName(),
-                    mantid_loc=self.mantid_loc,
+                    CONDA_ENV=self.conda_env,
                     script_dir=self.script_dir,
                     update_every=self.updateEvery,
                     preserve_events=self.preserveEvents,
@@ -269,7 +264,7 @@ class EventHandler(pyinotify.ProcessEvent):
     logger = logger or logging.getLogger('EventHandler')
 
     def __init__(self, config, livemanager):
-        # files that we actual care about
+        # files that we actually care about
         self.configfile = config.filename
         self.scriptdir = config.script_dir
 
@@ -284,18 +279,21 @@ class EventHandler(pyinotify.ProcessEvent):
         self.livemanager = livemanager
 
     def _md5(self, filename):
-        if filename:
+        if filename and os.path.exists(filename):
             return md5(open(filename, 'rb').read()).hexdigest()
         else:
             return ''
 
     def filestowatch(self):
-        return [self.scriptdir, self.configfile]
+        if self.configfile:
+            return [self.scriptdir, self.configfile]
+        else:
+            return self.scriptdir
 
     def process_default(self, event):
         # changing the config file means just restart
         if event.pathname == self.configfile:
-            self.logger.warn('Modifying configuration file is not supported' +
+            self.logger.warning('Modifying configuration file is not supported' +
                              '- shutting down')
             self.livemanager.stop()
             raise KeyboardInterrupt('stop inotify')
@@ -333,10 +331,6 @@ else:
 config = Config(config)
 logger.info('Configuration options: ' +
             config.toJson(sort_keys=True, indent=2))
-
-# importing mantid needs to happen after configuration is loaded
-import mantid  # noqa
-import mantid.simpleapi  # noqa
 
 # for passing into the eventhandler for inotify
 liveDataMgr = LiveDataManager(config)

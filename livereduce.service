@@ -4,8 +4,9 @@ Description=Live processing service
 [Service]
 WorkingDirectory=/tmp
 User=snsdata
-ExecStart=/usr/bin/python3 /usr/bin/livereduce.py
+ExecStart=/usr/bin/livereduce.sh
 Restart=always
+# StartLimitInterval and StartLimitBurst were moved to [Unit] in systemd version 241
 StartLimitInterval=8640
 StartLimitBurst=1000
 RestartSec=10

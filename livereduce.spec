@@ -5,7 +5,7 @@
 
 Summary: %{summary}
 Name: python-%{srcname}
-Version: 1.6
+Version: 1.7
 Release: %{release}%{?dist}
 Source0: %{srcname}-%{version}.tar.gz
 License: MIT
@@ -19,7 +19,8 @@ Url: https://github.com/mantidproject/livereduce
 BuildRequires: python%{python3_pkgversion} python%{python3_pkgversion}-setuptools
 
 Requires: python%{python3_pkgversion}
-Requires: python3-inotify
+Requires: jq
+Requires: nsd-app-wrap
 
 %description
 There should be a meaninful description, but it is not needed quite yet.
@@ -53,4 +54,5 @@ rm -f /var/log/SNS_applications/livereduce.log*
 %doc README.md
 %{python3_sitelib}/*
 %{_bindir}/livereduce.py
+%{_bindir}/livereduce.sh
 %{_prefix}/lib/systemd/system/livereduce.service

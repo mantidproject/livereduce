@@ -17,7 +17,9 @@ Start Live Processing
 
 Similarly to the server
 ```
-$ mantidpython --classic scripts/livereduce.py test/fake.conf
+$ PATH=$PATH:/path/with/nsd-app-wrap scripts/livereduce.sh test/fake.conf
 ```
 Once the first chunk of live data is processed, `ctrl-C` will
 interrupt the process and it will close cleanly.
+
+In testing mode, the logging will go to `${PWD}/livereduce.log` and can be watched with `tail -F livereduce.log`
