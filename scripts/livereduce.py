@@ -285,12 +285,15 @@ class EventHandler(pyinotify.ProcessEvent):
             return ''
 
     def filestowatch(self):
-        return [self.scriptdir, self.configfile]
+        if self.configfile:
+            return [self.scriptdir, self.configfile]
+        else:
+            return self.scriptdir
 
     def process_default(self, event):
         # changing the config file means just restart
         if event.pathname == self.configfile:
-            self.logger.warn('Modifying configuration file is not supported' +
+            self.logger.warning('Modifying configuration file is not supported' +
                              '- shutting down')
             self.livemanager.stop()
             raise KeyboardInterrupt('stop inotify')
