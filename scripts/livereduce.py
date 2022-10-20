@@ -279,7 +279,7 @@ class EventHandler(pyinotify.ProcessEvent):
         self.livemanager = livemanager
 
     def _md5(self, filename):
-        if filename:
+        if filename and os.path.exists(filename):
             return md5(open(filename, 'rb').read()).hexdigest()
         else:
             return ''
