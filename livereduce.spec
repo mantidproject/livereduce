@@ -20,6 +20,7 @@ BuildRequires: python%{python3_pkgversion} python%{python3_pkgversion}-setuptool
 
 Requires: python%{python3_pkgversion}
 Requires: jq
+Requires: nsd-app-wrap
 
 %description
 There should be a meaninful description, but it is not needed quite yet.
