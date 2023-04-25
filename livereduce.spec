@@ -23,7 +23,7 @@ Requires: jq
 Requires: nsd-app-wrap
 
 %description
-There should be a meaninful description, but it is not needed quite yet.
+There should be a meaningful description, but it is not needed quite yet.
 
 %{?python_provide:%python_provide python-%{srcname}}
 
