@@ -273,7 +273,8 @@ class EventHandler(pyinotify.ProcessEvent):
 
     def _md5(self, filename):
         if filename and os.path.exists(filename):
-            return md5(open(filename, "rb").read()).hexdigest()
+            # this cannot change until python3.9 is the oldest version used
+            return md5(open(filename, "rb").read()).hexdigest()  # noqa: S324
         else:
             return ""
 
