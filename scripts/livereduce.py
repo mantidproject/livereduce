@@ -142,7 +142,7 @@ class Config:
         self.logger.info(f'mantid_loc="{os.path.dirname(mantid.__file__)}"')
 
         try:
-            from mantid.kernel import UsageService  # noqa
+            from mantid.kernel import UsageService
 
             # to differentiate from other apps
             UsageService.setApplicationName("livereduce")
