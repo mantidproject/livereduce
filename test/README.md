@@ -1,6 +1,7 @@
 This should be a fully working example. All that you need is to add a
 working version of mantid. Please note that the server and client need
-to be started separately.
+to be started separately and are configured to be executed with the
+conda environment activated
 
 Start Live Data Server
 ----------------------
