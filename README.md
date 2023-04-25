@@ -78,6 +78,16 @@ This package depends on
 [pyinotify](https://github.com/seb-m/pyinotify) and (of course)
 [mantid](http://www.mantidproject.org).
 
+Developer notes
+---------------
+
+This repository is configured to use pre-commit. This can be done using conda via
+
+```
+conda env create  # looks at environment.yml
+pre-commit install
+```
+
 Python 3 compatibility
 ----------------------
 
