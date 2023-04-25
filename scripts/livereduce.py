@@ -10,6 +10,7 @@ import mantid  # for clearer error message
 import pyinotify
 from mantid.simpleapi import StartLiveData
 from mantid.utils.logging import log_to_python as mtd_log_to_python
+from packging.version import parse as parse_version
 
 # ##################
 # configure logging
@@ -287,8 +288,12 @@ class EventHandler(pyinotify.ProcessEvent):
 
     def _md5(self, filename):
         if filename and os.path.exists(filename):
-            # this cannot change until python3.9 is the oldest version used
-            return md5(open(filename, "rb").read()).hexdigest()  # noqa: S324
+            # starting in python 3.9 one can point out md5 is not used in security context
+            if parse_version(sys.version) < parse_version("3.9"):
+                md5sum = md5(open(filename, "rb").read())  # noqa: S324
+            else:
+                md5sum = md5(open(filename, "rb").read(), usedforsecurity=False)
+            return md5sum.hexdigest()
         else:
             return ""
 
