@@ -52,7 +52,7 @@ logger.info(f"using python interpreter {sys.executable}")
 class LiveDataManager:
     """class for handling ``StartLiveData`` and ``MonitorLiveData``"""
 
-    logger = logger or logging.getLogger("LiveDataManager")
+    logger = logging.getLogger(LOG_NAME + ".LiveDataManager")
 
     def __init__(self, config):
         self.config = config
@@ -120,7 +120,7 @@ class Config:
 
     def __init__(self, filename):
         r"""Optional argument is the json formatted config file"""
-        self.logger = logger or logging.getLogger("Config")
+        self.logger = logging.getLogger(LOG_NAME + ".Config")
 
         # read file from json into a dict
         self.filename = None
@@ -268,7 +268,7 @@ class Config:
 
 ####################
 class EventHandler(pyinotify.ProcessEvent):
-    logger = logger or logging.getLogger("EventHandler")
+    logger = logging.getLogger(LOG_NAME + ".EventHandler")
 
     def __init__(self, config, livemanager):
         # files that we actually care about
