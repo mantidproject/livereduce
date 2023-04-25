@@ -9,28 +9,40 @@ from hashlib import md5
 import mantid  # for clearer error message
 import pyinotify
 from mantid.simpleapi import StartLiveData
+from mantid.utils.logging import log_to_python as mtd_log_to_python
 
 # ##################
 # configure logging
 # ##################
 LOG_NAME = "livereduce"  # constant for logging
 LOG_FILE = "/var/log/SNS_applications/livereduce.log"
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+
+# mantid should let python logging do the work
+mtd_log_to_python("information")
+logging.getLogger("Mantid").setLevel(logging.INFO)
 
 # create a file handler
 if os.environ["USER"] == "snsdata":
-    handler = logging.FileHandler(LOG_FILE)
+    fileHandler = logging.FileHandler(LOG_FILE)
 else:
-    handler = logging.FileHandler("livereduce.log")
-handler.setLevel(logging.INFO)
-
-# create a logging format
+    fileHandler = logging.FileHandler("livereduce.log")
+fileHandler.setLevel(logging.INFO)
+# set the logging format
 logformat = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-handler.setFormatter(logging.Formatter(logformat))
+fileHandler.setFormatter(logging.Formatter(logformat))
 
-# add the handlers to the logger
-logger.addHandler(handler)
+# create a stream handler
+streamHandler = logging.StreamHandler()
+streamHandler.setLevel(logging.INFO)
+streamHandler.addFilter(logging.Filter("Mantid"))
+
+# add the handlers to the root logger
+logging.getLogger().addHandler(fileHandler)
+logging.getLogger().addHandler(streamHandler)
+
+
+logging.getLogger(LOG_NAME).setLevel(logging.INFO)
+logger = logging.getLogger(LOG_NAME)
 
 logger.info("logging started by user '" + os.environ["USER"] + "'")
 logger.info(f"using python interpreter {sys.executable}")
@@ -46,6 +58,8 @@ class LiveDataManager:
         self.config = config
 
     def start(self):
+        mtd_log_to_python("information")
+
         liveArgs = self.config.toStartLiveArgs()
         self.logger.info("StartLiveData(" + json.dumps(liveArgs, sort_keys=True, indent=2) + ")")
         try:
@@ -326,9 +340,10 @@ logger.info("Configuration options: " + config.toJson(sort_keys=True, indent=2))
 # for passing into the eventhandler for inotify
 liveDataMgr = LiveDataManager(config)
 
-handler = EventHandler(config, LiveDataManager(config))
+handler = EventHandler(config, liveDataMgr)
 wm = pyinotify.WatchManager()
 notifier = pyinotify.Notifier(wm, handler)
+
 # watched events
 mask = pyinotify.IN_DELETE | pyinotify.IN_MODIFY | pyinotify.IN_CREATE
 logger.info(f"WATCHING:{handler.filestowatch()}")
