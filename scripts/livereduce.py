@@ -9,28 +9,41 @@ from hashlib import md5
 import mantid  # for clearer error message
 import pyinotify
 from mantid.simpleapi import StartLiveData
+from mantid.utils.logging import log_to_python as mtd_log_to_python
+from packging.version import parse as parse_version
 
 # ##################
 # configure logging
 # ##################
 LOG_NAME = "livereduce"  # constant for logging
 LOG_FILE = "/var/log/SNS_applications/livereduce.log"
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+
+# mantid should let python logging do the work
+mtd_log_to_python("information")
+logging.getLogger("Mantid").setLevel(logging.INFO)
 
 # create a file handler
 if os.environ["USER"] == "snsdata":
-    handler = logging.FileHandler(LOG_FILE)
+    fileHandler = logging.FileHandler(LOG_FILE)
 else:
-    handler = logging.FileHandler("livereduce.log")
-handler.setLevel(logging.INFO)
-
-# create a logging format
+    fileHandler = logging.FileHandler("livereduce.log")
+fileHandler.setLevel(logging.INFO)
+# set the logging format
 logformat = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-handler.setFormatter(logging.Formatter(logformat))
+fileHandler.setFormatter(logging.Formatter(logformat))
 
-# add the handlers to the logger
-logger.addHandler(handler)
+# create a stream handler
+streamHandler = logging.StreamHandler()
+streamHandler.setLevel(logging.INFO)
+streamHandler.addFilter(logging.Filter("Mantid"))
+
+# add the handlers to the root logger
+logging.getLogger().addHandler(fileHandler)
+logging.getLogger().addHandler(streamHandler)
+
+
+logging.getLogger(LOG_NAME).setLevel(logging.INFO)
+logger = logging.getLogger(LOG_NAME)
 
 logger.info("logging started by user '" + os.environ["USER"] + "'")
 logger.info(f"using python interpreter {sys.executable}")
@@ -40,12 +53,14 @@ logger.info(f"using python interpreter {sys.executable}")
 class LiveDataManager:
     """class for handling ``StartLiveData`` and ``MonitorLiveData``"""
 
-    logger = logger or logging.getLogger("LiveDataManager")
+    logger = logging.getLogger(LOG_NAME + ".LiveDataManager")
 
     def __init__(self, config):
         self.config = config
 
     def start(self):
+        mtd_log_to_python("information")
+
         liveArgs = self.config.toStartLiveArgs()
         self.logger.info("StartLiveData(" + json.dumps(liveArgs, sort_keys=True, indent=2) + ")")
         try:
@@ -106,7 +121,7 @@ class Config:
 
     def __init__(self, filename):
         r"""Optional argument is the json formatted config file"""
-        self.logger = logger or logging.getLogger("Config")
+        self.logger = logging.getLogger(LOG_NAME + ".Config")
 
         # read file from json into a dict
         self.filename = None
@@ -127,7 +142,7 @@ class Config:
         self.logger.info(f'mantid_loc="{os.path.dirname(mantid.__file__)}"')
 
         try:
-            from mantid.kernel import UsageService  # noqa
+            from mantid.kernel import UsageService
 
             # to differentiate from other apps
             UsageService.setApplicationName("livereduce")
@@ -254,7 +269,7 @@ class Config:
 
 ####################
 class EventHandler(pyinotify.ProcessEvent):
-    logger = logger or logging.getLogger("EventHandler")
+    logger = logging.getLogger(LOG_NAME + ".EventHandler")
 
     def __init__(self, config, livemanager):
         # files that we actually care about
@@ -273,7 +288,12 @@ class EventHandler(pyinotify.ProcessEvent):
 
     def _md5(self, filename):
         if filename and os.path.exists(filename):
-            return md5(open(filename, "rb").read()).hexdigest()
+            # starting in python 3.9 one can point out md5 is not used in security context
+            if parse_version(sys.version) < parse_version("3.9"):
+                md5sum = md5(open(filename, "rb").read())  # noqa: S324
+            else:
+                md5sum = md5(open(filename, "rb").read(), usedforsecurity=False)
+            return md5sum.hexdigest()
         else:
             return ""
 
@@ -325,9 +345,10 @@ logger.info("Configuration options: " + config.toJson(sort_keys=True, indent=2))
 # for passing into the eventhandler for inotify
 liveDataMgr = LiveDataManager(config)
 
-handler = EventHandler(config, LiveDataManager(config))
+handler = EventHandler(config, liveDataMgr)
 wm = pyinotify.WatchManager()
 notifier = pyinotify.Notifier(wm, handler)
+
 # watched events
 mask = pyinotify.IN_DELETE | pyinotify.IN_MODIFY | pyinotify.IN_CREATE
 logger.info(f"WATCHING:{handler.filestowatch()}")
