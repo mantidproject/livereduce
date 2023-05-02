@@ -10,7 +10,7 @@ import mantid  # for clearer error message
 import pyinotify
 from mantid.simpleapi import StartLiveData
 from mantid.utils.logging import log_to_python as mtd_log_to_python
-from packging.version import parse as parse_version
+from packaging.version import parse as parse_version
 
 # ##################
 # configure logging
