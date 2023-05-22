@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="livereduce",
-    version="1.9",
+    version="1.10",
     description="Need a description",
     author="Pete Peterson",
     author_email="petersonpf@ornl.gov",
