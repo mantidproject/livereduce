@@ -289,7 +289,7 @@ class EventHandler(pyinotify.ProcessEvent):
     def _md5(self, filename):
         if filename and os.path.exists(filename):
             # starting in python 3.9 one can point out md5 is not used in security context
-            if parse_version(sys.version) < parse_version("3.9"):
+            if parse_version(f"{sys.version_info.major}.{sys.version_info.minor}") < parse_version("3.9"):
                 md5sum = md5(open(filename, "rb").read())  # noqa: S324
             else:
                 md5sum = md5(open(filename, "rb").read(), usedforsecurity=False)
