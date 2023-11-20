@@ -1,0 +1,21 @@
+[project]
+name = "livereduce"
+description = "Daemon for running live data reduction with systemd"
+version="1.10"
+#dynamic = ["version"]
+requires-python = ">=3.9"
+license = { text = "MIT License" }
+authors = [{name="Pete Peterson",email="petersonpf@ornl.gov"}]
+
+[project.urls]
+Homepage = "https://github.com/mantidproject/livereduce"
+
+[build-system]
+requires = [
+  "setuptools",
+   "wheel",
+   "toml"
+   ]
+build-backend = "setuptools.build_meta"
+
+#TODO define entrypoints
