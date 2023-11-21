@@ -315,14 +315,12 @@ class EventHandler(pyinotify.ProcessEvent):
         if event.pathname in self.scriptfiles.keys():
             newmd5 = self._md5(event.pathname)
             if newmd5 == self.scriptfiles[event.pathname]:
-                self.logger.info('Processing script "{}" has not changed md5' "sum - continuing".format(event.pathname))
+                self.logger.info(f'Processing script "{event.pathname}" has not changed md5' "sum - continuing")
             else:
                 # update the md5 sum associated with the file
                 self.scriptfiles[event.pathname] = newmd5
                 # restart the service
-                self.logger.info(
-                    'Processing script "{}" changed - restarting ' '"StartLiveData"'.format(event.pathname)
-                )
+                self.logger.info(f'Processing script "{event.pathname}" changed - restarting ' '"StartLiveData"')
                 self.livemanager.stop()
                 time.sleep(1.0)  # seconds
                 self.livemanager.start()
