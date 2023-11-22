@@ -25,4 +25,7 @@ include-package-data=true
 where = ["."]
 exclude = ["test"]
 
+[tool.setuptools.package-data]
+"*" = ["*.sh", "*.service"]
+
 #TODO define entrypoints
