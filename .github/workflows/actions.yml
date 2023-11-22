@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main, qa, next]
+    tags: ['v*']
+
+jobs:
+  python-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up MicroMamaba
+      uses: mamba-org/setup-micromamba@v1
+      with:
+        environment-file: environment.yml
+        condarc: |
+          channels:
+            - conda-forge
+            - mantid
+            - default
+        cache-environment-key: ${{ runner.os }}-env-${{ hashFiles('**/environment.yml') }}
+        cache-downloads-key: ${{ runner.os }}-downloads-${{ hashFiles('**/environment.yml') }}
+    - name: Build source distribution
+      shell: bash -l {0}
+      run: |
+        python -m build --sdist --no-isolation
