@@ -28,5 +28,6 @@ jobs:
         cache-downloads-key: ${{ runner.os }}-downloads-${{ hashFiles('**/environment.yml') }}
     - name: Build source distribution
       shell: bash -l {0}
-      run: |
+      run: | # this is used as part of making the rpm
         python -m build --sdist --no-isolation
+        # the wheel isn't build because this is a unusual package
