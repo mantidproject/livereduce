@@ -17,6 +17,7 @@ Vendor: Pete Peterson
 Url: https://github.com/mantidproject/livereduce
 
 BuildRequires: python%{python3_pkgversion}
+BuildRequires: systemd-rpm-macros
 
 Requires: python%{python3_pkgversion}
 Requires: jq
