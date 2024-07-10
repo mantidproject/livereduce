@@ -127,7 +127,7 @@ class Config:
         self.filename = None
         if filename is not None and os.path.exists(filename) and os.path.getsize(filename) > 0:
             self.filename = os.path.abspath(filename)
-            self.logger.info("Loading configuration from '%s'" % filename)
+            self.logger.info(f"Loading configuration from '{filename}'")
             with open(filename) as handle:
                 json_doc = json.load(handle)
             logger.debug(json.dumps(json_doc))
@@ -161,7 +161,7 @@ class Config:
         # location of the scripts
         self.script_dir = json_doc.get("script_dir")
         if self.script_dir is None:
-            self.script_dir = "/SNS/%s/shared/livereduce" % self.instrument.shortName()
+            self.script_dir = f"/SNS/{self.instrument.shortName()!s}/shared/livereduce"
         else:
             self.script_dir = os.path.abspath(self.script_dir)
 
@@ -198,22 +198,22 @@ class Config:
 
         allowed = alg.getProperty("AccumulationMethod").allowedValues
         if self.accumMethod not in allowed:
-            msg = "accumulation method '%s' is not allowed " % self.accumMethod
+            msg = f"accumulation method '{self.accumMethod}' is not allowed "
             msg += str(allowed)
             raise ValueError(msg)
 
     def __determineScriptNames(self):
-        filenameStart = "reduce_%s_live" % str(self.instrument.shortName())
+        filenameStart = f"reduce_{self.instrument.shortName()!s}_live"
 
         # script for processing each chunk
         self.procScript = filenameStart + "_proc.py"
         self.procScript = os.path.join(self.script_dir, self.procScript)
         if not os.path.exists(self.procScript):
-            msg = "ProcessingScriptFilename '%s' does not exist" % self.procScript
+            msg = f"ProcessingScriptFilename '{self.procScript}' does not exist"
             raise RuntimeError(msg)
 
         if os.path.getsize(self.procScript) <= 0:
-            msg = "ProcessingScriptFilename '%s' is empty" % self.procScript
+            msg = f"ProcessingScriptFilename '{self.procScript}' is empty"
             raise RuntimeError(msg)
 
         # script for processing accumulation
