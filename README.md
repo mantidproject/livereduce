@@ -1,13 +1,13 @@
 Configuration and logging
 -------------------------
 
-The configuration is automatically read from `/etc/livereduce.conf`
-unless specified as a command line argument. Defaults will be
-attempted to be determined from the environment. A minimal configuration to specify using nightly builds of mantid is
+The configuration is automatically read from `/etc/livereduce.conf`unless specified as a command line argument.
+Defaults will be attempted to be determined from the environment.
+A minimal configuration to specify using nightly builds of mantid installed in a conda environment `mantid-dev` is
 ```json
 {
   "instrument": "PG3",
-  "mantid_loc": "/opt/mantidnightly/bin"
+  "CONDA_ENV": "mantid-dev"
 }
 ```
 For testing a configuration file can be supplied as a command line argument when running
@@ -34,6 +34,9 @@ to see the last 25 lines (`-n 25`) mantid wrote to `stdout` with the full
 information for each line (`-l`). People with extra permissions can run
 ``sudo journalctl -u livereduce -f`` and see all of the logs without them
 flushing on restart of the service.
+
+If the instrument is not defined in the configuration file (default is `/etc/livereduce.conf`) the software will ask mantid for the default instrument using `mantid.kerel.ConfigService.getInstrument()` ([docs](https://docs.mantidproject.org/nightly/api/python/mantid/kernel/ConfigServiceImpl.html#mantid.kernel.ConfigServiceImpl.getInstrument)).
+The default instrument is controlled in the [mantid properties files](https://docs.mantidproject.org/nightly/concepts/PropertiesFile.html) and is typically defined in `/etc/mantid.local.properties`.
 
 The script files that are used/looked for are
 

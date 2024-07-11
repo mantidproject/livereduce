@@ -5,7 +5,7 @@
 
 Summary: %{summary}
 Name: python-%{srcname}
-Version: 1.11
+Version: 1.12
 Release: %{release}%{?dist}
 Source0: %{srcname}-%{version}.tar.gz
 License: MIT
@@ -22,6 +22,7 @@ BuildRequires: systemd-rpm-macros
 Requires: python%{python3_pkgversion}
 Requires: jq
 Requires: nsd-app-wrap
+Requires: systemd
 
 %description
 There should be a meaningful description, but it is not needed quite yet.

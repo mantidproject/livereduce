@@ -1,14 +1,13 @@
 [Unit]
 Description=Live processing service
+StartLimitInterval=8640
+StartLimitBurst=1000
 
 [Service]
 WorkingDirectory=/tmp
 User=snsdata
 ExecStart=/usr/bin/livereduce.sh
 Restart=always
-# StartLimitInterval and StartLimitBurst were moved to [Unit] in systemd version 241
-StartLimitInterval=8640
-StartLimitBurst=1000
 RestartSec=10
 
 [Install]
