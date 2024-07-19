@@ -20,20 +20,18 @@ The logfile of what was setup for running, as well as other messages, is
 or `livereduce.log` in the current working directory (if run from the
 command line).
 
-If run from inside `systemd`, use the standard commands for starting and stopping it.
+If run from inside `systemctl`, use the standard commands for starting and stopping it.
 ```shell
-sudo service livereduce start
-sudo service livereduce stop
-sudo service livereduce restart
+sudo systemctl start livereduce
+sudo systemctl stop livereduce
+sudo systemctl restart livereduce
 ```
 The status of the service can be found via
 ```shell
-sudo service livereduce status -l -n 25
+sudo systemctl status livereduce status
 ```
-to see the last 25 lines (`-n 25`) mantid wrote to `stdout` with the full
-information for each line (`-l`). People with extra permissions can run
-``sudo journalctl -u livereduce -f`` and see all of the logs without them
-flushing on restart of the service.
+the logs are stored in `/var/log/SNS_applications/livereduce.log` and are readable by anyone.
+People with extra permissions can run ``sudo journalctl -u livereduce -f`` and see all of the logs without them flushing on restart of the service.
 
 If the instrument is not defined in the configuration file (default is `/etc/livereduce.conf`) the software will ask mantid for the default instrument using `mantid.kerel.ConfigService.getInstrument()` ([docs](https://docs.mantidproject.org/nightly/api/python/mantid/kernel/ConfigServiceImpl.html#mantid.kernel.ConfigServiceImpl.getInstrument)).
 The default instrument is controlled in the [mantid properties files](https://docs.mantidproject.org/nightly/concepts/PropertiesFile.html) and is typically defined in `/etc/mantid.local.properties`.
