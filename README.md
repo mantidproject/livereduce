@@ -32,6 +32,7 @@ sudo systemctl status livereduce status
 ```
 the logs are stored in `/var/log/SNS_applications/livereduce.log` and are readable by anyone.
 People with extra permissions can run ``sudo journalctl -u livereduce -f`` and see all of the logs without them flushing on restart of the service.
+Sometimes the service refuses to restart, in that case `stop` then `start` it in separate commands.
 
 If the instrument is not defined in the configuration file (default is `/etc/livereduce.conf`) the software will ask mantid for the default instrument using `mantid.kerel.ConfigService.getInstrument()` ([docs](https://docs.mantidproject.org/nightly/api/python/mantid/kernel/ConfigServiceImpl.html#mantid.kernel.ConfigServiceImpl.getInstrument)).
 The default instrument is controlled in the [mantid properties files](https://docs.mantidproject.org/nightly/concepts/PropertiesFile.html) and is typically defined in `/etc/mantid.local.properties`.
