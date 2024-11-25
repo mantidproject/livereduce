@@ -9,3 +9,4 @@ dependencies:
   - pyinotify
   - pre-commit
   - python-build
+  - psutil
