@@ -379,7 +379,7 @@ liveDataMgr.start()
 
 # start the memory checker
 if config.system_mem_limit_perc > 0:
-    memory_thread = threading.Thread(target=memory_checker, args=(config, liveDataMgr))
+    memory_thread = threading.Thread(target=memory_checker, args=(config, liveDataMgr), daemon=True)
     memory_thread.start()
 
 # inotify will keep the program running
