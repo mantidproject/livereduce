@@ -3,14 +3,18 @@ import logging
 import os
 import signal
 import sys
+import threading
 import time
 from hashlib import md5
 
 import mantid  # for clearer error message
+import psutil
 import pyinotify
-from mantid.simpleapi import StartLiveData
+from mantid.simpleapi import StartLiveData, mtd
 from mantid.utils.logging import log_to_python as mtd_log_to_python
 from packaging.version import parse as parse_version
+
+CONVERSION_FACTOR_BYTES_TO_MB = 1.0 / (1024 * 1024)
 
 # ##################
 # configure logging
@@ -78,6 +82,13 @@ class LiveDataManager:
             mantid.AlgorithmManager.cancelAll()
         else:
             cls.logger.info("mantid not initialized - nothing to cleanup")
+
+    def restart_and_clear(self):
+        self.logger.info("Restarting Live Data and clearing workspaces")
+        self.stop()
+        time.sleep(1.0)
+        mtd.clear()
+        self.start()
 
 
 # ##################
@@ -157,6 +168,10 @@ class Config:
         self.accumMethod = str(json_doc.get("accum_method", "Add"))
         self.periods = json_doc.get("periods", None)
         self.spectra = json_doc.get("spectra", None)
+        self.system_mem_limit_perc = json_doc.get("system_mem_limit_perc", 25)  # set to 0 to disable
+        self.mem_check_interval_sec = json_doc.get("mem_check_interval_sec", 1)
+        self.mem_limit = psutil.virtual_memory().total * self.system_mem_limit_perc / 100
+        self.proc_pid = psutil.Process(os.getpid())
 
         # location of the scripts
         self.script_dir = json_doc.get("script_dir")
@@ -321,9 +336,16 @@ class EventHandler(pyinotify.ProcessEvent):
                 self.scriptfiles[event.pathname] = newmd5
                 # restart the service
                 self.logger.info(f'Processing script "{event.pathname}" changed - restarting ' '"StartLiveData"')
-                self.livemanager.stop()
-                time.sleep(1.0)  # seconds
-                self.livemanager.start()
+                self.livemanager.restart_and_clear()
+
+
+def memory_checker(config, livemanager):
+    while True:
+        mem_used = config.proc_pid.memory_info().rss
+        if mem_used > config.mem_limit:
+            logger.error(f"Memory usage {mem_used * CONVERSION_FACTOR_BYTES_TO_MB:.2f} MB exceeds limit")
+            livemanager.restart_and_clear()
+        time.sleep(config.mem_check_interval_sec)
 
 
 # determine the configuration file
@@ -354,6 +376,11 @@ wm.add_watch(handler.filestowatch(), mask)
 
 # start up the live data
 liveDataMgr.start()
+
+# start the memory checker
+if config.system_mem_limit_perc > 0:
+    memory_thread = threading.Thread(target=memory_checker, args=(config, liveDataMgr), daemon=True)
+    memory_thread.start()
 
 # inotify will keep the program running
 notifier.loop()
