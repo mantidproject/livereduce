@@ -10,18 +10,22 @@ A minimal configuration to specify using nightly builds of mantid installed in a
   "CONDA_ENV": "mantid-dev"
 }
 ```
-For testing a configuration file can be supplied as a command line argument when running
+For testing, a configuration file can be supplied as a command line argument when running
 ```shell
 $ python scripts/livereduce.py ./livereduce.conf
 ```
-If the instrument is not defined in the configuration file (default is `/etc/livereduce.conf`) the software will ask mantid for the default instrument using `mantid.kerel.ConfigService.getInstrument()` ([docs](https://docs.mantidproject.org/nightly/api/python/mantid/kernel/ConfigServiceImpl.html#mantid.kernel.ConfigServiceImpl.getInstrument)).
-The default instrument is controlled in the [mantid properties files](https://docs.mantidproject.org/nightly/concepts/PropertiesFile.html) and is typically defined in `/etc/mantid.local.properties`.
+If the instrument is not defined in the configuration file,
+the software will ask mantid for the default instrument using
+`mantid.kerel.ConfigService.getInstrument()` ([docs](https://docs.mantidproject.org/nightly/api/python/mantid/kernel/ConfigServiceImpl.html#mantid.kernel.ConfigServiceImpl.getInstrument)).
+The default instrument is controlled in the [mantid properties files](https://docs.mantidproject.org/nightly/concepts/PropertiesFile.html)
+and is typically defined in `/etc/mantid.local.properties`.
 
 
 Managing the service
 --------------------
 
 If run from inside `systemctl`, use the standard commands for starting and stopping it.
+
 ```shell
 sudo systemctl start livereduce
 sudo systemctl stop livereduce
@@ -56,7 +60,7 @@ The `livereduce.py` script manages live data reduction using the Mantid framewor
 logging, handles signals for graceful termination, reads the configuration JSON, and
 manages live data processing with Mantid's StartLiveData and MonitorLiveData algorithms. The
 script monitors memory usage and restarts the live data processing if memory limits are exceeded.
-It uses pyinotify to watch for changes in configuration and processing scripts, restarting the
+It uses `pyinotify` to watch for changes in configuration and processing scripts, restarting the
 live data processing as needed. The script relies on instrument-specific processing scripts for data
 accumulation and reduction, namely:
 
