@@ -1,5 +1,5 @@
-Configuration and logging
--------------------------
+Configuration
+-------------
 
 The configuration is automatically read from `/etc/livereduce.conf`unless specified as a command line argument.
 Defaults will be attempted to be determined from the environment.
@@ -14,11 +14,12 @@ For testing a configuration file can be supplied as a command line argument when
 ```shell
 $ python scripts/livereduce.py ./livereduce.conf
 ```
+If the instrument is not defined in the configuration file (default is `/etc/livereduce.conf`) the software will ask mantid for the default instrument using `mantid.kerel.ConfigService.getInstrument()` ([docs](https://docs.mantidproject.org/nightly/api/python/mantid/kernel/ConfigServiceImpl.html#mantid.kernel.ConfigServiceImpl.getInstrument)).
+The default instrument is controlled in the [mantid properties files](https://docs.mantidproject.org/nightly/concepts/PropertiesFile.html) and is typically defined in `/etc/mantid.local.properties`.
 
-The logfile of what was setup for running, as well as other messages, is
-`/var/log/SNS_applications/livereduce.log` if run as the user `snsdata`,
-or `livereduce.log` in the current working directory (if run from the
-command line).
+
+Managing the service
+--------------------
 
 If run from inside `systemctl`, use the standard commands for starting and stopping it.
 ```shell
@@ -30,24 +31,43 @@ The status of the service can be found via
 ```shell
 sudo systemctl status livereduce status
 ```
+
+Logging
+--------
+
+The logfile of what was setup for running, as well as other messages, is
+`/var/log/SNS_applications/livereduce.log` if run as the user `snsdata`,
+or `livereduce.log` in the current working directory (if run from the
+command line).
+
 the logs are stored in `/var/log/SNS_applications/livereduce.log` and are readable by anyone.
 People with extra permissions can run ``sudo journalctl -u livereduce -f`` and see all of the logs without them flushing on restart of the service.
 Sometimes the service refuses to restart, in that case `stop` then `start` it in separate commands.
 
-If the instrument is not defined in the configuration file (default is `/etc/livereduce.conf`) the software will ask mantid for the default instrument using `mantid.kerel.ConfigService.getInstrument()` ([docs](https://docs.mantidproject.org/nightly/api/python/mantid/kernel/ConfigServiceImpl.html#mantid.kernel.ConfigServiceImpl.getInstrument)).
-The default instrument is controlled in the [mantid properties files](https://docs.mantidproject.org/nightly/concepts/PropertiesFile.html) and is typically defined in `/etc/mantid.local.properties`.
 
-The script files that are used/looked for are
+Service scripts
+---------------
 
-* `<script_dir>/reduce_<instrument>_proc.py` is the processing script
-  (for each chunk). This is required.
-* `<script_dir>/reduce_<instrument>_post_proc.py` is the
-  post-processing script (for the accumulated data). To disable this
-  step rename the python script so it is not found by the daemon.
+Upon starting the service, script [livereduce.sh](../scripts/livereduce.sh) will be run.
+This shell script invokes [livereduce.py](../scripts/livereduce.py) within a conda environment
+specified in the configuration file. Otherwise the environment is set to `"mantid-dev"`.
+
+The `livereduce.py` script manages live data reduction using the Mantid framework. It configures
+logging, handles signals for graceful termination, reads the configuration JSON, and
+manages live data processing with Mantid's StartLiveData and MonitorLiveData algorithms. The
+script monitors memory usage and restarts the live data processing if memory limits are exceeded.
+It uses pyinotify to watch for changes in configuration and processing scripts, restarting the
+live data processing as needed. The script relies on instrument-specific processing scripts for data
+accumulation and reduction, namely:
+
+* `<script_dir>/reduce_<instrument>_proc.py` is the processing script for each chunk. This is required.
+* `<script_dir>/reduce_<instrument>_post_proc.py` is the post-processing script for the accumulated data.
+  To disable this step rename the python script so it is not found by the daemon.
 
 Example filenames for NOMAD with default script location is
 `/SNS/NOM/shared/livereduce/reduce_NOM_live_proc.py` and
 `/SNS/NOM/shared/livereduce/reduce_NOM_live_post_proc.py`.
+
 
 Behavior
 --------
@@ -62,6 +82,7 @@ by md5sum) or removed. This is to be resilient against changes in the scripts.
 The process will exit and systemd will restart it if the configuration
 file is changed. This is done in case the version of mantid wanted is
 changed.
+
 
 Building and packaging
 ----------------------
