@@ -49,26 +49,25 @@ People with extra permissions can run ``sudo journalctl -u livereduce -f`` and s
 Sometimes the service refuses to restart, in that case `stop` then `start` it in separate commands.
 
 
-Service scripts
----------------
+Python processing scripts
+-------------------------
 
-Upon starting the service, script [livereduce.sh](../scripts/livereduce.sh) will be run.
-This shell script invokes [livereduce.py](../scripts/livereduce.py) within a conda environment
-specified in the configuration file. Otherwise the environment is set to `"mantid-dev"`.
 
-The `livereduce.py` script manages live data reduction using the Mantid framework. It configures
-logging, handles signals for graceful termination, reads the configuration JSON, and
-manages live data processing with Mantid's StartLiveData and MonitorLiveData algorithms. The
-script monitors memory usage and restarts the live data processing if memory limits are exceeded.
-It uses `pyinotify` to watch for changes in configuration and processing scripts, restarting the
-live data processing as needed. The script relies on instrument-specific processing scripts for data
-accumulation and reduction, namely:
-
-* `<script_dir>/reduce_<instrument>_proc.py` is the processing script for each chunk. This is required.
-* `<script_dir>/reduce_<instrument>_post_proc.py` is the post-processing script for the accumulated data.
+- [livereduce.sh](../scripts/livereduce.sh) is the script that is run when the service is started.
+  This shell script invokes `livereduce.py` within a conda environment
+  specified in the configuration file. Otherwise the environment is set to `"mantid-dev"`.
+- [livereduce.py](../scripts/livereduce.py) script manages live data reduction using the Mantid framework.
+  It configures logging, handles signals for graceful termination, reads the configuration JSON,
+  and manages live data processing with Mantid's StartLiveData and MonitorLiveData algorithms.
+  The script monitors memory usage and restarts the live data processing if memory limits are exceeded.
+  It uses `pyinotify` to watch for changes in configuration and processing scripts,
+  restarting the live data processing as needed. The service relies on instrument-specific processing scripts
+  for data accumulation and reduction
+- `<script_dir>/reduce_<instrument>_proc.py` is the instrument-specific processing script for each chunk (required).
+- `<script_dir>/reduce_<instrument>_post_proc.py` is the post-processing script for the accumulated data.
   To disable this step rename the python script so it is not found by the daemon.
 
-Example filenames for NOMAD with default script location is
+Example instrument-specific scripts for NOMAD with default script location are
 `/SNS/NOM/shared/livereduce/reduce_NOM_live_proc.py` and
 `/SNS/NOM/shared/livereduce/reduce_NOM_live_post_proc.py`.
 
