@@ -114,18 +114,6 @@ conda env create  # looks at environment.yml
 pre-commit install
 ```
 
-Python 3 compatibility
-----------------------
-
-`livereduce.py` is python2/3 compatible. Because
-the [`livereduce.service`](livereduce.service) file is written to use
-system python, whether it is actually using python 2 or 3 will depend
-on your system's default python. The other thing to note, is that
-`livereduce.py` imports mantid directly in its namespace so you must
-run `livereduce.py` using the same python that mantid was built
-against.
-
-
 Acknowledgements and other links
 --------------------------------
 Information and ideas taken from:
