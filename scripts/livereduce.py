@@ -13,7 +13,7 @@ import mantid  # for clearer error message
 import psutil
 import pyinotify
 from mantid.kernel import InstrumentInfo
-from mantid.simpleapi import mtd, StartLiveData
+from mantid.simpleapi import StartLiveData, mtd
 from mantid.utils.logging import log_to_python as mtd_log_to_python
 from packaging.version import parse as parse_version
 
@@ -225,11 +225,11 @@ class Config:
                 # set the facility if not the default
                 if facility != ConfigService.getFacility().name():
                     ConfigService.setFacility(facility)
-                    self.logger.info(f"Default Facility set to {str(facility)}")
+                    self.logger.info(f"Default Facility set to {facility!s}")
                 # set the instrument if not the default. Prefer `str(inst)` over `inst.name()`
                 if str(instrument_instance) != str(ConfigService.getInstrument()):
                     ConfigService["default.instrument"] = str(instrument_instance)
-                    self.logger.info(f"Default Instrument set to {str(instrument_instance)}")
+                    self.logger.info(f"Default Instrument set to {instrument_instance!s}")
                 return instrument_instance
         except ImportError:
             self.logger.error("Failed to import mantid.ConfigService", exc_info=True)
