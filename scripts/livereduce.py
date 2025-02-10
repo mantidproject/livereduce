@@ -101,7 +101,7 @@ sig_name = {signal.SIGINT: "SIGINT", signal.SIGQUIT: "SIGQUIT", signal.SIGTERM: 
 
 
 def sigterm_handler(sig_received, frame):  # noqa: ARG001
-    msg = "received %s(%d)" % (sig_name[sig_received], sig_received)
+    msg = f"received {sig_name[sig_received]}({sig_received})"
     # logger.debug( "SIGTERM received")
     logger.info(msg)
     LiveDataManager.stop()
