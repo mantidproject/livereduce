@@ -1,3 +1,4 @@
+# Standard library imports
 import json
 import logging
 import os
@@ -7,9 +8,11 @@ import threading
 import time
 from hashlib import md5
 
+# Third-party imports
 import mantid  # for clearer error message
 import psutil
 import pyinotify
+from mantid.kernel import InstrumentInfo
 from mantid.simpleapi import StartLiveData, mtd
 from mantid.utils.logging import log_to_python as mtd_log_to_python
 from packaging.version import parse as parse_version
@@ -161,7 +164,7 @@ class Config:
             self.logger.error("General error while importing " "mantid.kernel.ConfigService:", exc_info=True)
             raise
 
-        self.instrument = self.__getInstrument(json_doc.get("instrument"))
+        self.instrument = self.__getSetInstrument(json_doc.get("instrument"))
         self.logger.info(f'self.instrument="{self.instrument}"')
         self.updateEvery = int(json_doc.get("update_every", 30))  # in seconds
         self.preserveEvents = json_doc.get("preserve_events", True)
@@ -185,21 +188,53 @@ class Config:
         self.__determineScriptNames()
         self.logger.info(f"bottom of Config.__init__({filename})")
 
-    def __getInstrument(self, instrument):
+    def __getSetInstrument(self, instrument: str) -> InstrumentInfo:
+        """
+        Retrieves the Mantid instrument info object.
+
+        Also updates the default facility and instrument in the Mantid configuration service if they happen
+        to be different than those defined by argument `instrument`.
+
+        Parameters
+        ----------
+        instrument : str
+            The name of the instrument to set. If None, the instrument in Mantid configuration service is used.
+
+        Returns
+        -------
+        InstrumentInfo
+            The instrument information object.
+
+        Raises
+        ------
+        ImportError
+            If the Mantid ConfigService cannot be imported.
+        RuntimeError
+            If there is a general error while getting the instrument.
+        """
         try:
             from mantid.kernel import ConfigService
 
             if instrument is None:
                 self.logger.info("Using default instrument")
-                return ConfigService.getInstrument()
+                instrument = ConfigService.getInstrument()
+                if len(instrument.name().strip()) == 0:
+                    raise RuntimeError("No instrument found in the configuration or Mantid.user.properties files")
+                else:
+                    return instrument
             else:
                 self.logger.info("Converting instrument using ConfigService")
-                instrument = ConfigService.getInstrument(str(instrument))
-                facility = instrument.facility().name()
-                # set the facility if it isn't the default
+                instrument_instance = ConfigService.getInstrument(str(instrument))
+                facility = instrument_instance.facility().name()
+                # set the facility if not the default
                 if facility != ConfigService.getFacility().name():
                     ConfigService.setFacility(facility)
-                return instrument
+                    self.logger.info(f"Default Facility set to {facility!s}")
+                # set the instrument if not the default. Prefer `str(inst)` over `inst.name()`
+                if str(instrument_instance) != str(ConfigService.getInstrument()):
+                    ConfigService["default.instrument"] = str(instrument_instance)
+                    self.logger.info(f"Default Instrument set to {instrument_instance!s}")
+                return instrument_instance
         except ImportError:
             self.logger.error("Failed to import mantid.ConfigService", exc_info=True)
             raise
