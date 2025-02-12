@@ -217,7 +217,11 @@ class Config:
 
             if instrument is None:
                 self.logger.info("Using default instrument")
-                return ConfigService.getInstrument()
+                instrument = ConfigService.getInstrument().strip()
+                if len(instrument) == 0:
+                    raise RuntimeError("No instrument found in the configuration or Mantid.user.properties files")
+                else:
+                    return instrument
             else:
                 self.logger.info("Converting instrument using ConfigService")
                 instrument_instance = ConfigService.getInstrument(str(instrument))
