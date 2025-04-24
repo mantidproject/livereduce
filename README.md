@@ -33,7 +33,7 @@ sudo systemctl restart livereduce
 ```
 The status of the service can be found via
 ```shell
-sudo systemctl status livereduce status
+sudo systemctl status livereduce
 ```
 
 Logging
