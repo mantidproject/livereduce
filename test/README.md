@@ -36,6 +36,12 @@ interrupt the process and it will close cleanly.
 In testing mode, the logging will go to `${PWD}/livereduce.log` and can be watched with `tail -F livereduce.log`
 
 
+Testing with post processing script
+----------------------------------
+
+An example using only a post-processing script can be tested using the `test/postprocessing/fake.conf`.
+
+
 Example using event data, to test memory monitoring
 ----------------------------------------------------
 
