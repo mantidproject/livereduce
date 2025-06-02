@@ -258,17 +258,25 @@ class Config:
         # script for processing each chunk
         self.procScript = filenameStart + "_proc.py"
         self.procScript = os.path.join(self.script_dir, self.procScript)
-        if not os.path.exists(self.procScript):
-            msg = f"ProcessingScriptFilename '{self.procScript}' does not exist"
-            raise RuntimeError(msg)
+        self.procScriptExist = os.path.exists(self.procScript)
 
-        if os.path.getsize(self.procScript) <= 0:
+        if self.procScriptExist and os.path.getsize(self.procScript) <= 0:
             msg = f"ProcessingScriptFilename '{self.procScript}' is empty"
             raise RuntimeError(msg)
 
         # script for processing accumulation
         self.postProcScript = filenameStart + "_post_proc.py"
         self.postProcScript = os.path.join(self.script_dir, self.postProcScript)
+        self.postProcScriptExist = os.path.exists(self.postProcScript)
+
+        if self.postProcScriptExist and os.path.getsize(self.postProcScript) <= 0:
+            msg = f"PostProcessingScriptFilename '{self.postProcScript}' is empty"
+            raise RuntimeError(msg)
+
+        # must provide at least one script
+        if not self.procScriptExist and not self.postProcScriptExist:
+            msg = f"Must provide at least one of '{self.procScript}' and/or '{self.postProcScript}'"
+            raise RuntimeError(msg)
 
     def toStartLiveArgs(self):
         self.__validateStartLiveDataProps()
@@ -277,7 +285,6 @@ class Config:
             Instrument=self.instrument.name(),
             UpdateEvery=self.updateEvery,
             PreserveEvents=self.preserveEvents,
-            ProcessingScriptFilename=self.procScript,
             AccumulationMethod=self.accumMethod,
             OutputWorkspace="result",
         )
@@ -286,7 +293,12 @@ class Config:
         args["FromNow"] = False
         args["FromStartOfRun"] = True
 
-        if os.path.exists(self.postProcScript) and os.path.getsize(self.postProcScript) > 0:
+        if self.procScriptExist:
+            self.logger.info(f"Using ProcessingScriptFilename '{self.procScript}'")
+            args["ProcessingScriptFilename"] = self.procScript
+
+        if self.postProcScriptExist:
+            self.logger.info(f"Using PostProcessingScriptFilename '{self.postProcScript}'")
             args["AccumulationWorkspace"] = "accumulation"
             args["PostProcessingScriptFilename"] = self.postProcScript
 
