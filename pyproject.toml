@@ -1,7 +1,7 @@
 [project]
 name = "livereduce"
 description = "Daemon for running live data reduction with systemd"
-version="1.13"
+version="1.14"
 #dynamic = ["version"]
 requires-python = ">=3.9"
 license = { text = "MIT License" }
