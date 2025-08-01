@@ -156,7 +156,7 @@ class Config:
         self.logger.info(f'mantid_loc="{os.path.dirname(mantid.__file__)}"')
 
         try:
-            from mantid.kernel import UsageService
+            from mantid.kernel import UsageService  # noqa: PLC0415
 
             # to differentiate from other apps
             UsageService.setApplicationName("livereduce")
@@ -213,7 +213,7 @@ class Config:
             If there is a general error while getting the instrument.
         """
         try:
-            from mantid.kernel import ConfigService
+            from mantid.kernel import ConfigService  # noqa: PLC0415
 
             if instrument is None:
                 self.logger.info("Using default instrument")
