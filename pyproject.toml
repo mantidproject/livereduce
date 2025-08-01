@@ -11,21 +11,30 @@ authors = [{name="Pete Peterson",email="petersonpf@ornl.gov"}]
 Homepage = "https://github.com/mantidproject/livereduce"
 
 [build-system]
-requires = [
-  "setuptools",
-   "wheel",
-   "toml"
-   ]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.setuptools]
-include-package-data=true
+[tool.hatch.build.targets.wheel]
+packages = ["."]
 
-[tool.setuptools.packages.find]
-where = ["."]
-exclude = ["test"]
+[tool.pixi.workspace]
+name = "livereduce"
+channels = ["conda-forge", "mantid", "https://prefix.dev/pixi-build-backends"]
+platforms = ["linux-64"]
+preview = ["pixi-build"]
 
-[tool.setuptools.package-data]
-"*" = ["*.sh", "*.service"]
+[tool.pixi.package.build]
+backend = { name = "pixi-build-python", version = "0.1.*" }
 
-#TODO define entrypoints
+[tool.pixi.dependencies]
+mantid = "*"
+pyinotify = "*"
+psutil = "*"
+hatchling = "*"
+pre-commit = ">=4.2.0"
+
+[tool.pixi.pypi-dependencies]
+livereduce = { path = ".", editable = true }
+
+[tool.pixi.tasks]
+build = "hatchling build -t sdist"
