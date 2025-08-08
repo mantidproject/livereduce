@@ -10,24 +10,12 @@ on:
 jobs:
   python-build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash -l {0}
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up MicroMamaba
-      uses: mamba-org/setup-micromamba@v1
-      with:
-        environment-file: environment.yml
-        condarc: |
-          channels:
-            - conda-forge
-            - mantid
-            - default
-        cache-environment-key: ${{ runner.os }}-env-${{ hashFiles('**/environment.yml') }}
-        cache-downloads-key: ${{ runner.os }}-downloads-${{ hashFiles('**/environment.yml') }}
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Setup Pixi
+      uses: prefix-dev/setup-pixi@v0.8.14
     - name: Build source distribution
-      shell: bash -l {0}
       run: | # this is used as part of making the rpm
-        python -m build --sdist --no-isolation
-        # the wheel isn't build because this is a unusual package
+        pixi run build
+        # the package isn't built because this is a unusual package
