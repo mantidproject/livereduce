@@ -1,7 +1,8 @@
-This should be a fully working example. Create a conda
+This should be a fully working example. Create a pixi
 environment `livereduce` with the required dependencies (specially package `mantid`).
+This can be done by `pixi install` then `pixi shell` to activate.
 Please note that the server and client need to be started separately in corresponding terminals,
-and are configured to be executed with the `livereduction` conda environment activated.
+and are configured to be executed with the `livereduce` pixi environment activated.
 
 
 Start Live Data Server

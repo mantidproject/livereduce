@@ -107,10 +107,11 @@ This package depends on
 Developer notes
 ---------------
 
-This repository is configured to use pre-commit. This can be done using conda via
+This repository is configured to use pre-commit. This can be done using pixi via
 
 ```
-conda env create  # looks at environment.yml
+pixi install
+pixi shell
 pre-commit install
 ```
 

@@ -1,6 +1,6 @@
 #!/bin/sh
-rm -rf dist livereduce.egg-info
-python -m build --sdist --no-isolation
+rm -rf dist
+pixi run build
 cp dist/livereduce-*.tar.gz ~/rpmbuild/SOURCES/
 rpmbuild -ba livereduce.spec
 cp ~/rpmbuild/RPMS/noarch/python-livereduce-*-*.*.noarch.rpm dist/
