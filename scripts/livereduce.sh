@@ -24,13 +24,11 @@ rm -f ${HOME}/.cache/fontconfig/*
 THISFILE=$(readlink -f "$0")
 INSTALLDIR=$(dirname "${THISFILE}")   # directory of executable
 
-# initialize conda and launch the application
-NSD_APP_WRAP_LIB=$(which nsd-app-wrap.sh)
-if [ -z "${NSD_APP_WRAP_LIB}" ];then
-    echo "Failed to find nsd-app-wrap.sh"
+# launch the application using nsd-conda-wrap.sh
+NSD_CONDA_WRAP=$(which nsd-conda-wrap.sh)
+if [ -z "${NSD_CONDA_WRAP}" ];then
+    echo "Failed to find nsd-conda-wrap.sh"
     exit -1
 fi
-source "${NSD_APP_WRAP_LIB}"
 APPLICATION="${INSTALLDIR}/livereduce.py"
-args=("${CONDA_ENVIRON}" "python3" "${APPLICATION}" "$@")
-activate_and_launch "${args[@]}"
+exec "${NSD_CONDA_WRAP}" "${CONDA_ENVIRON}" --classic python3 "${APPLICATION}" "$@"
