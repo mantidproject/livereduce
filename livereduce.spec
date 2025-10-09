@@ -23,7 +23,6 @@ Requires: python%{python3_pkgversion}
 Requires: jq
 Requires: nsd-app-wrap
 Requires: systemd
-# User and group requirements per Fedora packaging guidelines
 Requires: user(snsdata)
 Requires: group(users)
 Requires: group(hfiradmin)
