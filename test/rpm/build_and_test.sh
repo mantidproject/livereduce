@@ -32,51 +32,37 @@ trap cleanup EXIT
 
 # Function to setup RPM build environment
 setup_rpm_environment() {
-    echo -e "${YELLOW}Setting up RPM build environment...${NC}"
+    echo -e "${YELLOW}Using existing rpmbuild.sh for building...${NC}"
 
-    # Create RPM build directories
-    mkdir -p "$RPMBUILD_DIR"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+    # Note: This uses the project's existing rpmbuild.sh script
+    # rather than reproducing the build logic
+    if [[ ! -f "$PROJECT_ROOT/rpmbuild.sh" ]]; then
+        echo -e "${RED}✗ rpmbuild.sh not found in project root${NC}"
+        return 1
+    fi
 
-    # Copy spec file
-    cp "$PROJECT_ROOT/livereduce.spec" "$RPMBUILD_DIR/SPECS/"
-
-    # Create source tarball
-    local version=$(grep "^Version:" "$PROJECT_ROOT/livereduce.spec" | awk '{print $2}')
-    local srcdir="$BUILD_DIR/livereduce-$version"
-
-    mkdir -p "$srcdir"
-
-    # Copy project files
-    cp -r "$PROJECT_ROOT"/* "$srcdir/" 2>/dev/null || true
-
-    # Remove build artifacts and temporary files
-    find "$srcdir" -name "*.pyc" -delete 2>/dev/null || true
-    find "$srcdir" -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
-    rm -rf "$srcdir/build" "$srcdir/rpmbuild" 2>/dev/null || true
-
-    # Create tarball
-    cd "$BUILD_DIR"
-    tar czf "$RPMBUILD_DIR/SOURCES/livereduce-$version.tar.gz" "livereduce-$version/"
-    cd "$PROJECT_ROOT"
-
-    echo -e "${GREEN}✓ RPM build environment ready${NC}"
+    echo -e "${GREEN}✓ Found existing build script${NC}"
 }
 
 # Function to build RPM package
 build_rpm() {
-    echo -e "${YELLOW}Building RPM package...${NC}"
+    echo -e "${YELLOW}Building RPM package using rpmbuild.sh...${NC}"
 
-    # Build the RPM
-    rpmbuild --define "_topdir $RPMBUILD_DIR" -ba "$RPMBUILD_DIR/SPECS/livereduce.spec"
+    # Use the existing rpmbuild.sh script
+    cd "$PROJECT_ROOT"
+    if ! ./rpmbuild.sh; then
+        echo -e "${RED}✗ RPM build failed${NC}"
+        return 1
+    fi
 
     # Check if build was successful
-    local rpm_file=$(find "$RPMBUILD_DIR/RPMS" -name "python-livereduce-*.rpm" | head -1)
+    local rpm_file=$(find ~/rpmbuild/RPMS -name "python-livereduce-*.rpm" 2>/dev/null | head -1)
+    if [[ -z "$rpm_file" ]]; then
+        rpm_file=$(find "$PROJECT_ROOT/dist" -name "python-livereduce-*.rpm" 2>/dev/null | head -1)
+    fi
+
     if [[ -f "$rpm_file" ]]; then
         echo -e "${GREEN}✓ RPM built successfully: $rpm_file${NC}"
-
-        # Copy RPM to project root for easy access
-        cp "$rpm_file" "$PROJECT_ROOT/"
-        echo -e "${GREEN}✓ RPM copied to project root${NC}"
 
         # Show RPM info
         echo -e "\n${BLUE}RPM Package Information:${NC}"
@@ -90,12 +76,10 @@ build_rpm() {
 
         return 0
     else
-        echo -e "${RED}✗ RPM build failed${NC}"
+        echo -e "${RED}✗ RPM build failed - package not found${NC}"
         return 1
     fi
-}
-
-# Function to run automated tests
+}# Function to run automated tests
 run_automated_tests() {
     echo -e "\n${YELLOW}=== Running Automated Tests ===${NC}"
 
