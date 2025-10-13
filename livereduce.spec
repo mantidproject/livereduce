@@ -26,6 +26,7 @@ Requires: systemd
 Requires: user(snsdata)
 Requires: group(users)
 Requires: group(hfiradmin)
+Requires: group(snsadmin)
 
 %description
 There should be a meaningful description, but it is not needed quite yet.
