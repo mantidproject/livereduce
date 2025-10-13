@@ -23,6 +23,10 @@ Requires: python%{python3_pkgversion}
 Requires: jq
 Requires: nsd-app-wrap
 Requires: systemd
+Requires: user(snsdata)
+Requires: group(users)
+Requires: group(hfiradmin)
+Requires: group(snsadmin)
 
 %description
 There should be a meaningful description, but it is not needed quite yet.
@@ -51,12 +55,17 @@ There should be a meaningful description, but it is not needed quite yet.
 %{__rm} -rf $RPM_BUILD_ROOT
 
 %post
+%systemd_post livereduce.service
 %{__mkdir} -p /var/log/SNS_applications/
 %{__chown} snsdata /var/log/SNS_applications/
 %{__chmod} 1755 /var/log/SNS_applications/
 
 %preun
+%systemd_preun livereduce.service
 %{__rm} -f /var/log/SNS_applications/livereduce.log*
+
+%postun
+%systemd_postun_with_restart livereduce.service
 
 %files
 %doc README.md
