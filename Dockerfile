@@ -30,6 +30,12 @@ COPY dist/livereduce*.tar.gz /home/builder/rpmbuild/SOURCES/
 # Build the RPM (source tarball already built by CI)
 RUN rpmbuild -ba /home/builder/livereduce.spec
 
-# Verify the RPM was created successfully
-RUN test -f /home/builder/rpmbuild/RPMS/noarch/python-livereduce-*.rpm && \
-    echo "RPM build successful!"
+# Install the RPM (as root)
+# Use --nodeps because nsd-app-wrap is SNS-specific and not in public repos
+USER root
+RUN rpm -ivh --nodeps /home/builder/rpmbuild/RPMS/noarch/python-livereduce-*.rpm
+
+# Verify installation
+RUN test -f /usr/bin/livereduce.sh && \
+    test -f /usr/lib/systemd/system/livereduce.service && \
+    echo "RPM installed successfully!"
