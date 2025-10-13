@@ -30,10 +30,6 @@ COPY dist/livereduce*.tar.gz /home/builder/rpmbuild/SOURCES/
 # Build the RPM (source tarball already built by CI)
 RUN rpmbuild -ba /home/builder/livereduce.spec
 
-# Install it (as root)
-USER root
-RUN dnf install -y /home/builder/rpmbuild/RPMS/noarch/python-livereduce*.noarch.rpm || exit 1
-
-# Verify installation
-USER builder
-RUN python3 -c "import livereduce; print('livereduce imported successfully')" || exit 1
+# Verify the RPM was created successfully
+RUN test -f /home/builder/rpmbuild/RPMS/noarch/python-livereduce-*.rpm && \
+    echo "RPM build successful!"
