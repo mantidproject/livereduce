@@ -15,35 +15,27 @@ echo -e "${BLUE}    LiveReduce RPM Testing Environment Setup ${NC}"
 echo -e "${BLUE}===============================================${NC}"
 
 # Check if we're on a supported system
-if command -v dnf &>/dev/null; then
-    PKG_MANAGER="dnf"
-elif command -v yum &>/dev/null; then
-    PKG_MANAGER="yum"
-else
-    echo -e "${RED}Unsupported system. This script requires dnf or yum package manager.${NC}"
+if ! command -v dnf &>/dev/null; then
+    echo -e "${RED}Unsupported system. This script requires dnf (available since RHEL 8).${NC}"
     exit 1
 fi
 
-echo -e "${BLUE}Detected package manager: $PKG_MANAGER${NC}"
+# Install build dependencies from spec file
+echo -e "\n${YELLOW}Installing build dependencies from spec file...${NC}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# Install required packages
-REQUIRED_PACKAGES=(
-    "rpm-build"
-    "rpmdevtools"
-    "systemd-rpm-macros"
-    "python3-devel"
-    "python3-setuptools"
-)
+if [[ ! -f "$PROJECT_ROOT/livereduce.spec" ]]; then
+    echo -e "${RED}Error: livereduce.spec not found in project root${NC}"
+    exit 1
+fi
 
-echo -e "\n${YELLOW}Installing required packages...${NC}"
-for package in "${REQUIRED_PACKAGES[@]}"; do
-    if rpm -q "$package" &>/dev/null; then
-        echo -e "${GREEN}✓${NC} $package already installed"
-    else
-        echo -e "${YELLOW}Installing $package...${NC}"
-        sudo $PKG_MANAGER install -y "$package"
-    fi
-done
+sudo dnf builddep -y "$PROJECT_ROOT/livereduce.spec"
+echo -e "${GREEN}✓${NC} Build dependencies installed"
+
+# Also install rpmdevtools which is not in the spec
+sudo dnf install -y rpmdevtools
+echo -e "${GREEN}✓${NC} rpmdevtools installed"
 
 # Create required users and groups for testing
 echo -e "\n${YELLOW}Setting up test users and groups...${NC}"
@@ -76,9 +68,10 @@ fi
 # Verify setup
 echo -e "\n${BLUE}Verifying setup...${NC}"
 
-# Check packages
+# Check key packages
 all_installed=true
-for package in "${REQUIRED_PACKAGES[@]}"; do
+KEY_PACKAGES=("rpm-build" "rpmdevtools" "systemd-rpm-macros")
+for package in "${KEY_PACKAGES[@]}"; do
     if rpm -q "$package" &>/dev/null; then
         echo -e "${GREEN}✓${NC} $package installed"
     else
