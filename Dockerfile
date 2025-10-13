@@ -18,16 +18,17 @@ RUN useradd builder
 USER builder
 WORKDIR /home/builder
 
+# Setup RPM build environment
+RUN mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+
 # Copy required files
 COPY livereduce.spec /home/builder/
 COPY livereduce.service /home/builder/
 COPY pyproject.toml /home/builder/
-COPY rpmbuild.sh /home/builder/
-RUN mkdir -p /home/builder/dist/
-COPY dist/livereduce*.tar.gz /home/builder/dist/
+COPY dist/livereduce*.tar.gz /home/builder/rpmbuild/SOURCES/
 
-# Build the RPM
-RUN /home/builder/rpmbuild.sh || exit 1
+# Build the RPM (source tarball already built by CI)
+RUN rpmbuild -ba /home/builder/livereduce.spec
 
 # Install it (as root)
 USER root
