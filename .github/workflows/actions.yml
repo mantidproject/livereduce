@@ -8,6 +8,16 @@ on:
     tags: ['v*']
 
 jobs:
+  rpm-quick-check:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Make quick_check.sh executable
+      run: chmod +x test/rpm/quick_check.sh
+    - name: Run RPM spec quick check
+      run: ./test/rpm/quick_check.sh
+
   python-build:
     runs-on: ubuntu-latest
     steps:
