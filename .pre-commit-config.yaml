@@ -8,7 +8,12 @@ repos:
         args: [--maxkb=8192]
       - id: check-yaml
       - id: check-merge-conflict
-      - id: end-of-file-fixer
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+        # follow sources even when they aren't specified on the command line
+        args: ["--external-sources"]
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.14.0
     hooks:

@@ -56,7 +56,8 @@ build_rpm() {
     fi
 
     # Check if build was successful
-    local rpm_file=$(find ~/rpmbuild/RPMS -name "python-livereduce-*.rpm" 2>/dev/null | head -1)
+    local rpm_file
+    rpm_file=$(find ~/rpmbuild/RPMS -name "python-livereduce-*.rpm" 2>/dev/null | head -1)
     if [[ -z "$rpm_file" ]]; then
         rpm_file=$(find "$PROJECT_ROOT/dist" -name "python-livereduce-*.rpm" 2>/dev/null | head -1)
     fi
@@ -164,7 +165,8 @@ main() {
     echo -e "${GREEN}✓ Automated tests completed${NC}"
     echo -e "${YELLOW}→ Manual testing available${NC}"
 
-    local rpm_file=$(find "$PROJECT_ROOT" -name "python-livereduce-*.rpm" | head -1)
+    local rpm_file
+    rpm_file=$(find "$PROJECT_ROOT" -name "python-livereduce-*.rpm" | head -1)
     if [[ -f "$rpm_file" ]]; then
         echo -e "\n${BLUE}Built RPM: $rpm_file${NC}"
         echo -e "${BLUE}Size: $(du -h "$rpm_file" | cut -f1)${NC}"

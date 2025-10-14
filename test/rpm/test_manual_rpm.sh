@@ -26,7 +26,7 @@ confirm_step() {
     echo -e "\n${YELLOW}=== $step_name ===${NC}"
     echo -e "${BLUE}$description${NC}"
     echo -e "${YELLOW}Press Enter to continue or Ctrl+C to abort...${NC}"
-    read
+    read -r
 }
 
 # Function to check and display current state
@@ -270,7 +270,7 @@ main_menu() {
         echo "0. Exit"
         echo -e "${BLUE}===============================================${NC}"
 
-        read -p "Select test (0-7): " choice
+        read -r -p "Select test (0-7): " choice
 
         case $choice in
             1) test_fresh_installation ;;

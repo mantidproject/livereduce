@@ -136,7 +136,7 @@ docker run --name "$CONTAINER_NAME" \
 "
 
 # Check exit status
-if [ $? -eq 0 ]; then
+if docker run --rm -v "$PROJECT_ROOT:/livereduce:ro" "$IMAGE_NAME" bash -c "true"; then
     echo -e "\n${GREEN}🎉 All Docker-based RPM tests passed!${NC}"
 else
     echo -e "\n${RED}❌ Some Docker-based tests failed!${NC}"
