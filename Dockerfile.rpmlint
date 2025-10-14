@@ -4,7 +4,7 @@ FROM registry.access.redhat.com/ubi9/ubi
 USER root
 WORKDIR /root
 
-RUN dnf install -y rpmdevtools rpmlint vim
+RUN dnf install -y rpmdevtools rpmlint
 
 RUN useradd builder
 USER builder

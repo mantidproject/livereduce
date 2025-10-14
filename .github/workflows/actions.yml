@@ -49,7 +49,7 @@ jobs:
       run: |
         echo "This passes with warnings"
         docker load --input ${{ runner.temp }}/rpmlint.tar
-        docker run  -v ./livereduce.spec:/tmp/livereduce.spec neutrons/rpmlint:latest rpmlint -i  /tmp/livereduce.spec
+        docker run -v ./livereduce.spec:/tmp/livereduce.spec neutrons/rpmlint:latest rpmlint -i  /tmp/livereduce.spec
 
   rpm:
     runs-on: ubuntu-latest
