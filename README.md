@@ -115,6 +115,8 @@ pixi shell
 pre-commit install
 ```
 
+More information about testing can be found in [test/README.md](test/README.md).
+
 Acknowledgements and other links
 --------------------------------
 Information and ideas taken from:

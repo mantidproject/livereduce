@@ -10,11 +10,7 @@ Start Live Data Server
 
 From the root of the repository, on a terminal run:
 ```
-(livereduction)$ mantidpython --classic test/fake_server.py
-```
-if you did not install mantid's `workbench` (no `mantidpython` command) but just the mantid backend, run:
-```
-(livereduction)$ python test/fake_server.py
+(livereduction)$ pixi run python test/fake_server.py
 ```
 Unfortunately, there is not currently a clean way to shutdown the
 process. `kill -9 <pid>` is the current suggestion.
@@ -28,7 +24,7 @@ Similarly to the server, on a different terminal run:
 ```
 If you don't have access to nsd-app-wrap, run instead:
 ```
-(livereduction)$ python scripts/livereduce.py test/fake.conf --test
+(livereduction)$ pixi run python scripts/livereduce.py test/fake.conf
 ```
 
 Once the first chunk of live data is processed, `ctrl-C` will
