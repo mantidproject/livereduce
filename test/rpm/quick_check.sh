@@ -11,7 +11,10 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # Dynamically find the spec file relative to this script
-SPEC_FILE="$(dirname "$(dirname "$(realpath "$0")")")/livereduce.spec"
+# Script is at test/rpm/quick_check.sh, spec is at project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+SPEC_FILE="$PROJECT_ROOT/livereduce.spec"
 
 echo -e "${BLUE}===============================================${NC}"
 echo -e "${BLUE}    LiveReduce RPM Spec File Quick Check     ${NC}"
@@ -79,7 +82,7 @@ else
 fi
 
 # Check service file
-SERVICE_FILE="$(dirname "$(dirname "$(realpath "$0")")")/livereduce.service"
+SERVICE_FILE="$PROJECT_ROOT/livereduce.service"
 if [[ -f "$SERVICE_FILE" ]]; then
     echo -e "${GREEN}✓ Service file exists${NC}"
 
