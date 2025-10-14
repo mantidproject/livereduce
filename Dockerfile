@@ -34,8 +34,9 @@ COPY dist/livereduce*.tar.gz /home/builder/dist/
 RUN /home/builder/rpmbuild.sh || exit 1
 
 # Install the RPM (as root)
+# Note: Using rpm with --nodeps because SNS-specific dependencies (nsd-app-wrap, groups, users) aren't available in CI
 USER root
-RUN dnf install -y /home/builder/rpmbuild/RPMS/noarch/python-livereduce-*.rpm
+RUN rpm -ivh --nodeps /home/builder/rpmbuild/RPMS/noarch/python-livereduce-*.rpm
 
 # Verify installation and test systemd service management
 RUN test -f /usr/bin/livereduce.sh && \
