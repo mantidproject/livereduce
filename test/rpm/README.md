@@ -223,26 +223,30 @@ sudo useradd -r -g users -G hfiradmin snsdata
 
 ## Test Output Analysis
 
-### Functionality Test Output
+### Quick Check Output
 
-The functionality test produces a detailed report with:
-- Test name and description
-- Status (PASS/FAIL/INFO/WARN)
-- Specific details for each check
+The quick check script validates spec file requirements and produces simple output:
+- Green ✓ for passing checks
+- Red ✗ for failing checks
+- Exits with status 0 on success, non-zero on failure
 
 Example output:
 ```
-[TEST] Service Exists: PASS - Service livereduce.service found in systemd
-✓ PASS
-[TEST] User Exists: PASS - User snsdata exists (UID: 992, GID: 990)
-✓ PASS
-[TEST] Group Dependency (hfiradmin): PASS - group(hfiradmin) dependency declared
-✓ PASS
+===============================================
+    LiveReduce RPM Spec File Quick Check
+===============================================
+
+✓ Spec file found
+✓ BuildRequires systemd-rpm-macros
+✓ Requires user(snsdata)
+✓ Requires group(users)
+✓ Requires group(hfiradmin)
+✓ %systemd_post scriptlet
+✓ %systemd_preun scriptlet
+✓ %systemd_postun_with_restart scriptlet
+
+All checks passed!
 ```
-
-### Results File
-
-Detailed results are saved to `/tmp/rpm_test_results.txt` for analysis.
 
 ## Integration with CI/CD
 
@@ -276,7 +280,7 @@ Enable verbose output in test scripts:
 
 ```bash
 export DEBUG=1
-./test/rpm/test_rpm_functionality.sh
+./test/rpm/build_and_test.sh
 ```
 
 ### Manual RPM Operations
