@@ -34,11 +34,15 @@ COPY dist/livereduce*.tar.gz /home/builder/dist/
 RUN /home/builder/rpmbuild.sh || exit 1
 
 # Install the RPM (as root)
-# Use --nodeps because nsd-app-wrap is SNS-specific and not in public repos
 USER root
-RUN rpm -ivh --nodeps /home/builder/rpmbuild/RPMS/noarch/python-livereduce-*.rpm
+RUN dnf install -y /home/builder/rpmbuild/RPMS/noarch/python-livereduce-*.rpm
 
-# Verify installation
+# Verify installation and test systemd service management
 RUN test -f /usr/bin/livereduce.sh && \
     test -f /usr/lib/systemd/system/livereduce.service && \
     echo "RPM installed successfully!"
+
+# Test that systemd service can be enabled/disabled
+RUN systemctl --dry-run enable livereduce.service && \
+    systemctl --dry-run disable livereduce.service && \
+    echo "Systemd service operations verified!"
