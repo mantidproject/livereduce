@@ -98,20 +98,6 @@ for group in "users" "hfiradmin"; do
     fi
 done
 
-# Create log directory with proper permissions
-echo -e "\n${YELLOW}Setting up log directory...${NC}"
-sudo mkdir -p /var/log/SNS_applications
-sudo chown snsdata:users /var/log/SNS_applications
-sudo chmod 1755 /var/log/SNS_applications
-
-if [[ -d "/var/log/SNS_applications" ]]; then
-    echo -e "${GREEN}✓${NC} Log directory created with proper permissions"
-    ls -la /var/log/SNS_applications/..
-else
-    echo -e "${RED}✗${NC} Failed to create log directory"
-    all_installed=false
-fi
-
 echo -e "\n${BLUE}===============================================${NC}"
 if $all_installed; then
     echo -e "${GREEN}✅ Setup completed successfully!${NC}"

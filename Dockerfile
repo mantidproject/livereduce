@@ -1,15 +1,11 @@
 FROM registry.access.redhat.com/ubi9/ubi
 
 USER root
+WORKDIR /root
 
 # Install EPEL and base packages
 RUN dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
 RUN dnf install -y make rpm-build python3 python-unversioned-command
-
-# Copy spec file to install build dependencies listed in the spec file
-# Note: On ndav, run: sudo dnf builddep -y livereduce.spec
-COPY livereduce.spec /tmp/
-RUN dnf builddep -y /tmp/livereduce.spec
 
 # Create required groups and users for livereduce
 RUN groupadd -r users 2>/dev/null || true
@@ -21,7 +17,14 @@ RUN useradd builder
 USER builder
 WORKDIR /home/builder
 
+# Copy spec file to install build dependencies listed in the spec file
+# Note: On ndav, run: sudo dnf builddep -y livereduce.spec
+COPY livereduce.spec /tmp/
+USER root
+RUN dnf builddep -y /tmp/livereduce.spec
+
 # Copy required files for RPM build
+USER builder
 COPY livereduce.spec /home/builder/
 COPY livereduce.service /home/builder/
 COPY pyproject.toml /home/builder/
