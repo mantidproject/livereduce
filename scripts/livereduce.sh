@@ -1,5 +1,5 @@
 #!/bin/bash
-echo "ARGS $@"
+echo "ARGS $*"
 
 # determine the configuration file
 if [ $# -ge 1 ]; then
@@ -13,12 +13,12 @@ CONDA_ENVIRON="mantid-dev"  # default
 if [ -f "${CONFIG_FILE}" ]; then
     if grep -q CONDA_ENV "${CONFIG_FILE}"; then
         echo "Determine conda environment from \"${CONFIG_FILE}"\"
-        CONDA_ENVIRON="$(/bin/jq --raw-output '.CONDA_ENV' ${CONFIG_FILE})"
+        CONDA_ENVIRON="$(/bin/jq --raw-output '.CONDA_ENV' "${CONFIG_FILE}")"
     fi
 fi
 
 # remove font-cache to side step startup speed issue
-rm -f ${HOME}/.cache/fontconfig/*
+rm -f "${HOME}"/.cache/fontconfig/*
 
 # location of this script
 THISFILE=$(readlink -f "$0")
@@ -28,7 +28,7 @@ INSTALLDIR=$(dirname "${THISFILE}")   # directory of executable
 NSD_CONDA_WRAP=$(which nsd-conda-wrap.sh)
 if [ -z "${NSD_CONDA_WRAP}" ];then
     echo "Failed to find nsd-conda-wrap.sh"
-    exit -1
+    exit 1
 fi
 APPLICATION="${INSTALLDIR}/livereduce.py"
 exec "${NSD_CONDA_WRAP}" "${CONDA_ENVIRON}" --classic python3 "${APPLICATION}" "$@"
