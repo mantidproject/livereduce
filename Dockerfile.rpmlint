@@ -1,0 +1,17 @@
+# syntax=docker/dockerfile:1
+FROM registry.access.redhat.com/ubi9/ubi
+
+USER root
+WORKDIR /root
+
+RUN dnf install -y rpmdevtools rpmlint
+
+RUN useradd builder
+USER builder
+WORKDIR /home/builder
+
+# create rpmlint configuration
+RUN mkdir -p ./.config
+RUN echo "addFilter('invalid-url Source')" > ./.config/rpmlint
+
+RUN rpmdev-setuptree

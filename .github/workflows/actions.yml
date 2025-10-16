@@ -30,6 +30,27 @@ jobs:
         pixi run build
         # the package isn't built because this is a unusual package
 
+  rpmlint:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    - name: Build and push Docker images
+      uses: docker/build-push-action@v6
+      with:
+        file: Dockerfile.rpmlint
+        tags: neutrons/rpmlint:latest
+        outputs: type=docker,dest=${{ runner.temp }}/rpmlint.tar
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    - name: Lint rpm
+      run: |
+        echo "This passes with warnings"
+        docker load --input ${{ runner.temp }}/rpmlint.tar
+        docker run -v ./livereduce.spec:/tmp/livereduce.spec neutrons/rpmlint:latest rpmlint -i  /tmp/livereduce.spec
+
   rpm:
     runs-on: ubuntu-latest
     steps:
