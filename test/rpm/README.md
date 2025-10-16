@@ -174,20 +174,17 @@ The `Dockerfile` in the project root:
 ### Debug Commands
 
 ```bash
-# Check RPM dependencies
-rpm -qR python-livereduce
+# Check RPM dependencies (use -p to check the .rpm file before installing)
+rpm -qRp python-livereduce*.rpm
 
-# Verify installation
-rpm -V python-livereduce
+# Verify installation (use -p to check the .rpm file before installing)
+rpm -Vp python-livereduce*.rpm
 
 # Check service status
 systemctl status livereduce.service
 
 # View service logs
 journalctl -u livereduce.service --no-pager
-
-# Validate service file
-systemd-analyze verify /usr/lib/systemd/system/livereduce.service
 ```
 
 ## Development Notes
