@@ -171,7 +171,7 @@ class Config:
         self.accumMethod = str(json_doc.get("accum_method", "Add"))
         self.periods = json_doc.get("periods", None)
         self.spectra = json_doc.get("spectra", None)
-        self.system_mem_limit_perc = json_doc.get("system_mem_limit_perc", 25)  # set to 0 to disable
+        self.system_mem_limit_perc = json_doc.get("system_mem_limit_perc", 70)  # set to 0 to disable
         self.mem_check_interval_sec = json_doc.get("mem_check_interval_sec", 1)
         self.mem_limit = psutil.virtual_memory().total * self.system_mem_limit_perc / 100
         self.proc_pid = psutil.Process(os.getpid())
