@@ -32,6 +32,7 @@ pyinotify = "*"
 psutil = "*"
 hatchling = "*"
 pre-commit = ">=4.2.0"
+argcomplete = ">=3.6.3,<4"
 
 [tool.pixi.pypi-dependencies]
 livereduce = { path = ".", editable = true }

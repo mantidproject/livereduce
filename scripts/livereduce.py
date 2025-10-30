@@ -39,14 +39,14 @@ fileHandler.setLevel(logging.INFO)
 logformat = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 fileHandler.setFormatter(logging.Formatter(logformat))
 
-# create a stream handler
-streamHandler = logging.StreamHandler()
-streamHandler.setLevel(logging.INFO)
-streamHandler.addFilter(logging.Filter("Mantid"))
+# create a stream handler for console output from loggers "Mantid" and "livereduce" only
+stream_handler = logging.StreamHandler(sys.stdout)  # console output
+stream_handler.setLevel(logging.INFO)
+stream_handler.addFilter(lambda record: "Mantid" in record.name or LOG_NAME in record.name)
 
 # add the handlers to the root logger
 logging.getLogger().addHandler(fileHandler)
-logging.getLogger().addHandler(streamHandler)
+logging.getLogger().addHandler(stream_handler)
 
 
 logging.getLogger(LOG_NAME).setLevel(logging.INFO)
@@ -91,7 +91,7 @@ class LiveDataManager:
         self.stop()
         time.sleep(1.0)
         mtd.clear()
-        self.start()
+        self.start()`
 
 
 # ##################
