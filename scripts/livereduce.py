@@ -91,7 +91,7 @@ class LiveDataManager:
         self.stop()
         time.sleep(1.0)
         mtd.clear()
-        self.start()`
+        self.start()
 
 
 # ##################
