@@ -56,12 +56,11 @@ else
     echo -e "${GREEN}✓ group(snsadmin) requirement correctly removed${NC}"
 fi
 
-# Check for group requirements (this one should still be present)
 if grep -q "Requires:.*group(users)" "$SPEC_FILE"; then
-    echo -e "${GREEN}✓ Requires group(users)${NC}"
-else
-    echo -e "${RED}✗ Missing group(users) requirement${NC}"
+    echo -e "${RED}✗ Found group(users) requirement (should be removed)${NC}"
     exit 1
+else
+    echo -e "${GREEN}✓ group(users) requirement correctly removed${NC}"
 fi
 
 # Check for systemd scriptlets
@@ -105,8 +104,8 @@ fi
 echo -e "\n${GREEN}🎉 All RPM spec file checks passed!${NC}"
 echo -e "\n${YELLOW}Spec file is correctly configured with:${NC}"
 echo "• systemd-rpm-macros build requirement"
-echo "• group(users) runtime requirement (standard group)"
-echo "• Removed problematic user/group requirements (snsdata, hfiradmin, snsadmin)"
+echo "• Removed all user/group requirements (snsdata, users, hfiradmin, snsadmin)"
+echo "• Added %pre check to warn if snsdata user is missing"
 echo "• Proper systemd scriptlets (%systemd_post, %systemd_preun, %systemd_postun_with_restart)"
 echo "• Service configured to run as snsdata user"
 

@@ -23,7 +23,6 @@ Requires: python%{python3_pkgversion}
 Requires: jq
 Requires: nsd-app-wrap
 Requires: systemd
-Requires: group(users)
 
 %description
 There should be a meaningful description, but it is not needed quite yet.
