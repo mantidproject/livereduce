@@ -34,26 +34,33 @@ else
     exit 1
 fi
 
-# Check for user requirements
+# Check that problematic user/group requirements are NOT present
 if grep -q "Requires:.*user(snsdata)" "$SPEC_FILE"; then
-    echo -e "${GREEN}✓ Requires user(snsdata)${NC}"
-else
-    echo -e "${RED}✗ Missing user(snsdata) requirement${NC}"
+    echo -e "${RED}✗ Found user(snsdata) requirement (should be removed)${NC}"
     exit 1
+else
+    echo -e "${GREEN}✓ user(snsdata) requirement correctly removed${NC}"
 fi
 
-# Check for group requirements
+if grep -q "Requires:.*group(hfiradmin)" "$SPEC_FILE"; then
+    echo -e "${RED}✗ Found group(hfiradmin) requirement (should be removed)${NC}"
+    exit 1
+else
+    echo -e "${GREEN}✓ group(hfiradmin) requirement correctly removed${NC}"
+fi
+
+if grep -q "Requires:.*group(snsadmin)" "$SPEC_FILE"; then
+    echo -e "${RED}✗ Found group(snsadmin) requirement (should be removed)${NC}"
+    exit 1
+else
+    echo -e "${GREEN}✓ group(snsadmin) requirement correctly removed${NC}"
+fi
+
+# Check for group requirements (this one should still be present)
 if grep -q "Requires:.*group(users)" "$SPEC_FILE"; then
     echo -e "${GREEN}✓ Requires group(users)${NC}"
 else
     echo -e "${RED}✗ Missing group(users) requirement${NC}"
-    exit 1
-fi
-
-if grep -q "Requires:.*group(hfiradmin)" "$SPEC_FILE"; then
-    echo -e "${GREEN}✓ Requires group(hfiradmin)${NC}"
-else
-    echo -e "${RED}✗ Missing group(hfiradmin) requirement${NC}"
     exit 1
 fi
 
@@ -95,17 +102,12 @@ else
     exit 1
 fi
 
-echo -e "\n${GREEN}🎉 All RPM improvements are correctly implemented!${NC}"
-echo -e "\n${YELLOW}Summary of changes:${NC}"
-echo "• Added systemd-rpm-macros build requirement"
-echo "• Added user(snsdata) requirement"
-echo "• Added group(users) requirement"
-echo "• Added group(hfiradmin) requirement"
-echo "• Added %systemd_post scriptlet for service installation"
-echo "• Added %systemd_preun scriptlet for service removal"
-echo "• Added %systemd_postun_with_restart scriptlet for automatic restart on upgrade"
+echo -e "\n${GREEN}🎉 All RPM spec file checks passed!${NC}"
+echo -e "\n${YELLOW}Spec file is correctly configured with:${NC}"
+echo "• systemd-rpm-macros build requirement"
+echo "• group(users) runtime requirement (standard group)"
+echo "• Removed problematic user/group requirements (snsdata, hfiradmin, snsadmin)"
+echo "• Proper systemd scriptlets (%systemd_post, %systemd_preun, %systemd_postun_with_restart)"
+echo "• Service configured to run as snsdata user"
 
-echo -e "\n${BLUE}Next steps:${NC}"
-echo "1. Install build prerequisites: ./test/rpm/setup_test_environment.sh"
-echo "2. Build and test RPM: ./test/rpm/build_and_test.sh"
-echo "3. Run manual tests: ./test/rpm/test_manual_rpm.sh"
+echo -e "\n${BLUE}Note:${NC} Users and groups should be created outside the RPM on production systems."
