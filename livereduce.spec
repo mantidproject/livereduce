@@ -51,6 +51,10 @@ There should be a meaningful description, but it is not needed quite yet.
 %clean
 %{__rm} -rf $RPM_BUILD_ROOT
 
+%pre
+# Check if required users exist
+id snsdata > /dev/null 2>&1 || echo "Warning: snsdata user not found. Please create it before running the service."
+
 %post
 %systemd_post livereduce.service
 %{__mkdir} -p /var/log/SNS_applications/
