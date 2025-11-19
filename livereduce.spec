@@ -5,7 +5,7 @@
 
 Summary: %{summary}
 Name: python-%{srcname}
-Version: 1.15
+Version: 1.16
 Release: %{release}%{?dist}
 Source0: %{srcname}-%{version}.tar.gz
 License: MIT
@@ -23,10 +23,6 @@ Requires: python%{python3_pkgversion}
 Requires: jq
 Requires: nsd-app-wrap
 Requires: systemd
-Requires: user(snsdata)
-Requires: group(users)
-Requires: group(hfiradmin)
-Requires: group(snsadmin)
 
 %description
 There should be a meaningful description, but it is not needed quite yet.
@@ -34,7 +30,7 @@ There should be a meaningful description, but it is not needed quite yet.
 %{?python_provide:%python_provide python%{python3_pkgversion}-%{srcname}}
 
 %prep
-%setup -q -n %{srcname}-%{version} -n %{srcname}-%{version}
+%setup -q -n %{srcname}-%{version}
 
 %build
 # no build step
@@ -53,6 +49,10 @@ There should be a meaningful description, but it is not needed quite yet.
 
 %clean
 %{__rm} -rf $RPM_BUILD_ROOT
+
+%pre
+# Check if required users exist; fail install if snsdata missing
+%{__id} snsdata > /dev/null 2>&1 || { echo "Error: snsdata user not found. Please create it before installing this package."; exit 1; }
 
 %post
 %systemd_post livereduce.service
