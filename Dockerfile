@@ -12,6 +12,9 @@ RUN groupadd -r users 2>/dev/null || true
 RUN groupadd -r hfiradmin
 RUN useradd -r -g users -G hfiradmin snsdata
 
+# Verify that snsdata exists
+RUN id snsdata
+
 # Create builder user
 RUN useradd builder
 USER builder
