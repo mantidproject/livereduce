@@ -52,7 +52,7 @@ There should be a meaningful description, but it is not needed quite yet.
 
 %pre
 # Check if required users exist
-id snsdata > /dev/null 2>&1 || echo "Error: snsdata user not found. Please create it before running the service." && exit 1
+%{__id} snsdata > /dev/null 2>&1 || echo "Error: snsdata user not found. Please create it before running the service." && exit 1
 
 %post
 %systemd_post livereduce.service
