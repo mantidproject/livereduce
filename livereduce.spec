@@ -5,7 +5,7 @@
 
 Summary: %{summary}
 Name: python-%{srcname}
-Version: 1.15
+Version: 1.16
 Release: %{release}%{?dist}
 Source0: %{srcname}-%{version}.tar.gz
 License: MIT
@@ -52,7 +52,7 @@ There should be a meaningful description, but it is not needed quite yet.
 
 %pre
 # Check if required users exist
-id snsdata > /dev/null 2>&1 || echo "Warning: snsdata user not found. Please create it before running the service."
+id snsdata > /dev/null 2>&1 || echo "Error: snsdata user not found. Please create it before running the service." && exit 1
 
 %post
 %systemd_post livereduce.service
