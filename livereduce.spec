@@ -30,7 +30,7 @@ There should be a meaningful description, but it is not needed quite yet.
 %{?python_provide:%python_provide python%{python3_pkgversion}-%{srcname}}
 
 %prep
-%setup -q -n %{srcname}-%{version} -n %{srcname}-%{version}
+%setup -q -n %{srcname}-%{version}
 
 %build
 # no build step
@@ -51,8 +51,8 @@ There should be a meaningful description, but it is not needed quite yet.
 %{__rm} -rf $RPM_BUILD_ROOT
 
 %pre
-# Check if required users exist
-%{__id} snsdata > /dev/null 2>&1 || echo "Error: snsdata user not found. Please create it before running the service." && exit 1
+# Check if required users exist; fail install if snsdata missing
+%{__id} snsdata > /dev/null 2>&1 || { echo "Error: snsdata user not found. Please create it before installing this package."; exit 1; }
 
 %post
 %systemd_post livereduce.service
