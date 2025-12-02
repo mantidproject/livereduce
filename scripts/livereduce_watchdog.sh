@@ -42,11 +42,13 @@ while true; do
       # Only restart if we haven't already done so in this inactivity window
       since_restart=$(( now - last_restart ))
       if (( since_restart >= THRESHOLD )); then
-        echo -e "\n#############################################################################" >> "$WATCHDOG_LOG"
-        echo "$(date '+%F %T') No change for $age s in $WATCHDOG_TARGET" >> "$WATCHDOG_LOG"
-        echo "---- Last 20 lines of $WATCHDOG_TARGET before restart:" >> "$WATCHDOG_LOG"
-        tail -n 20 "$WATCHDOG_TARGET" >> "$WATCHDOG_LOG"
-        echo -e "\nrestarting $MANAGED_SERVICE." >> "$WATCHDOG_LOG"
+        {
+          echo -e "\n#############################################################################"
+          echo "$(date '+%F %T') No change for $age s in $WATCHDOG_TARGET"
+          echo "---- Last 20 lines of $WATCHDOG_TARGET before restart:"
+          tail -n 20 "$WATCHDOG_TARGET"
+          echo -e "\nrestarting $MANAGED_SERVICE."
+        } >> "$WATCHDOG_LOG"
         # Restart the service (use systemctl or service as appropriate)
         if command -v systemctl &>/dev/null; then
           systemctl stop "$MANAGED_SERVICE"
