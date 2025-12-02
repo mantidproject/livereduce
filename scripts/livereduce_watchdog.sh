@@ -1,0 +1,66 @@
+#!/bin/bash
+echo "ARGS $*"
+
+# determine the configuration file.
+if [ $# -ge 1 ]; then
+    CONFIG_FILE="${1}"
+else
+    CONFIG_FILE=/etc/livereduce.conf
+fi
+
+# Check if the configuration file exists
+if [ ! -f "${CONFIG_FILE}" ]; then
+    echo "ERROR: Config file '${CONFIG_FILE}' not found." >&2
+    exit 1
+fi
+
+# --- CONFIG ---
+WATCHDOG_TARGET="/var/log/SNS_applications/livereduce.log"
+MANAGED_SERVICE="livereduce.service"
+# How often we check WATCHDOG_TARGET. Default is 60 seconds.
+INTERVAL="$(/bin/jq --raw-output '.watchdog.interval // 60' "${CONFIG_FILE}")"
+# Inactivity threshold. Default is 300 seconds.
+THRESHOLD="$(/bin/jq --raw-output '.watchdog.threshold // 300' "${CONFIG_FILE}")"
+
+WATCHDOG_LOG="/var/log/SNS_applications/livereduce_watchdog.log"
+# Track when we last issued a restart so we don't keep restarting every loop
+last_restart=0
+
+# Infinite loop
+while true; do
+
+  if [[ ! -e "$WATCHDOG_TARGET" ]]; then
+    echo "$(date '+%F %T') ERROR: '$WATCHDOG_TARGET' not found." >> "$WATCHDOG_LOG"
+
+  else
+    # Get file mtime (epoch seconds) and current time
+    last_mod=$(stat -c %Y "$WATCHDOG_TARGET")
+    now=$(date +%s)
+    age=$(( now - last_mod ))
+
+    if (( age >= THRESHOLD )); then
+      # Only restart if we haven't already done so in this inactivity window
+      since_restart=$(( now - last_restart ))
+      if (( since_restart >= THRESHOLD )); then
+        echo -e "\n#############################################################################" >> "$WATCHDOG_LOG"
+        echo "$(date '+%F %T') No change for $age s in $WATCHDOG_TARGET" >> "$WATCHDOG_LOG"
+        echo "---- Last 20 lines of $WATCHDOG_TARGET before restart:" >> "$WATCHDOG_LOG"
+        tail -n 20 "$WATCHDOG_TARGET" >> "$WATCHDOG_LOG"
+        echo -e "\nrestarting $MANAGED_SERVICE." >> "$WATCHDOG_LOG"
+        # Restart the service (use systemctl or service as appropriate)
+        if command -v systemctl &>/dev/null; then
+          systemctl stop "$MANAGED_SERVICE"
+          systemctl start "$MANAGED_SERVICE"
+          systemctl status "$MANAGED_SERVICE" >> "$WATCHDOG_LOG"
+        else
+          service "$MANAGED_SERVICE" stop
+          service "$MANAGED_SERVICE" start >> "$WATCHDOG_LOG"
+          service "$MANAGED_SERVICE" status >> "$WATCHDOG_LOG"
+        fi
+        last_restart=$now
+      fi
+    fi
+  fi
+
+  sleep "$INTERVAL"
+done

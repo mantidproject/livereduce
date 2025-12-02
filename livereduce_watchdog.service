@@ -1,0 +1,12 @@
+[Unit]
+Description=Livereduction Watchdog
+
+[Service]
+WorkingDirectory=/tmp
+User=snsdata
+ExecStart=/usr/bin/livereduce_watchdog.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
