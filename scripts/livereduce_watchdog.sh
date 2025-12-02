@@ -51,10 +51,12 @@ while true; do
         if command -v systemctl &>/dev/null; then
           systemctl stop "$MANAGED_SERVICE"
           systemctl start "$MANAGED_SERVICE"
+          sleep 5 # give it a moment to start
           systemctl status "$MANAGED_SERVICE" >> "$WATCHDOG_LOG"
         else
           service "$MANAGED_SERVICE" stop
-          service "$MANAGED_SERVICE" start >> "$WATCHDOG_LOG"
+          service "$MANAGED_SERVICE" start
+          sleep 5 # give it a moment to start
           service "$MANAGED_SERVICE" status >> "$WATCHDOG_LOG"
         fi
         last_restart=$now
