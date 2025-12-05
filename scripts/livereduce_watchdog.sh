@@ -17,10 +17,24 @@ fi
 # --- CONFIG ---
 WATCHDOG_TARGET="/var/log/SNS_applications/livereduce.log"
 MANAGED_SERVICE="livereduce.service"
+# Default values
+DEFAULT_INTERVAL=60
+DEFAULT_THRESHOLD=300
 # How often we check WATCHDOG_TARGET. Default is 60 seconds.
 INTERVAL="$(/bin/jq --raw-output '.watchdog.interval // 60' "${CONFIG_FILE}")"
 # Inactivity threshold. Default is 300 seconds.
 THRESHOLD="$(/bin/jq --raw-output '.watchdog.threshold // 300' "${CONFIG_FILE}")"
+
+# Validate INTERVAL is a positive integer, otherwise use default
+if ! [[ "$INTERVAL" =~ ^[0-9]+$ ]] || (( INTERVAL <= 0 )); then
+  echo "WARNING: Invalid INTERVAL value '$INTERVAL'. Using default: $DEFAULT_INTERVAL" >&2
+  INTERVAL=$DEFAULT_INTERVAL
+fi
+# Validate THRESHOLD is a positive integer, otherwise use default
+if ! [[ "$THRESHOLD" =~ ^[0-9]+$ ]] || (( THRESHOLD <= 0 )); then
+  echo "WARNING: Invalid THRESHOLD value '$THRESHOLD'. Using default: $DEFAULT_THRESHOLD" >&2
+  THRESHOLD=$DEFAULT_THRESHOLD
+fi
 
 WATCHDOG_LOG="/var/log/SNS_applications/livereduce_watchdog.log"
 # Track when we last issued a restart so we don't keep restarting every loop
