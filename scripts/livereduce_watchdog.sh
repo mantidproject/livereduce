@@ -44,7 +44,7 @@ last_restart=0
 while true; do
 
   if [[ ! -e "$WATCHDOG_TARGET" ]]; then
-    echo "$(date '+%F %T') ERROR: '$WATCHDOG_TARGET' not found." >> "$WATCHDOG_LOG"
+    echo "$(date --iso-8601=seconds) ERROR: '$WATCHDOG_TARGET' not found." >> "$WATCHDOG_LOG"
 
   else
     # Get file mtime (epoch seconds) and current time
@@ -58,20 +58,18 @@ while true; do
       if (( since_restart >= THRESHOLD )); then
         {
           echo -e "\n#############################################################################"
-          echo "$(date '+%F %T') No change for $age s in $WATCHDOG_TARGET"
+          echo "$(date --iso-8601=seconds) No change for $age s in $WATCHDOG_TARGET"
           echo "---- Last 20 lines of $WATCHDOG_TARGET before restart:"
           tail -n 20 "$WATCHDOG_TARGET"
           echo -e "\nrestarting $MANAGED_SERVICE."
         } >> "$WATCHDOG_LOG"
         # Restart the service (use systemctl or service as appropriate)
         if command -v systemctl &>/dev/null; then
-          systemctl stop "$MANAGED_SERVICE"
-          systemctl start "$MANAGED_SERVICE"
+          systemctl restart "$MANAGED_SERVICE"
           sleep 5 # give it a moment to start
           systemctl status "$MANAGED_SERVICE" >> "$WATCHDOG_LOG"
         else
-          service "$MANAGED_SERVICE" stop
-          service "$MANAGED_SERVICE" start
+          service "$MANAGED_SERVICE" restart
           sleep 5 # give it a moment to start
           service "$MANAGED_SERVICE" status >> "$WATCHDOG_LOG"
         fi

@@ -1,5 +1,6 @@
 [Unit]
 Description=Livereduction Watchdog
+After=livereduce.service
 
 [Service]
 WorkingDirectory=/tmp
