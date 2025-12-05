@@ -26,12 +26,12 @@ INTERVAL="$(/bin/jq --raw-output '.watchdog.interval // 60' "${CONFIG_FILE}")"
 THRESHOLD="$(/bin/jq --raw-output '.watchdog.threshold // 300' "${CONFIG_FILE}")"
 
 # Validate INTERVAL is a positive integer, otherwise use default
-if ! [[ "$INTERVAL" =~ ^[0-9]+$ ]] || (( INTERVAL <= 0 )); then
+if ! [[ "$INTERVAL" =~ ^[1-9][0-9]*$ ]]; then
   echo "WARNING: Invalid INTERVAL value '$INTERVAL'. Using default: $DEFAULT_INTERVAL" >&2
   INTERVAL=$DEFAULT_INTERVAL
 fi
 # Validate THRESHOLD is a positive integer, otherwise use default
-if ! [[ "$THRESHOLD" =~ ^[0-9]+$ ]] || (( THRESHOLD <= 0 )); then
+if ! [[ "$THRESHOLD" =~ ^[1-9][0-9]*$ ]]; then
   echo "WARNING: Invalid THRESHOLD value '$THRESHOLD'. Using default: $DEFAULT_THRESHOLD" >&2
   THRESHOLD=$DEFAULT_THRESHOLD
 fi
