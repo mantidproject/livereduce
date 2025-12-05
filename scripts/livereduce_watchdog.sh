@@ -19,6 +19,7 @@ WATCHDOG_TARGET="/var/log/SNS_applications/livereduce.log"
 MANAGED_SERVICE="livereduce.service"
 # Default values
 DEFAULT_INTERVAL=60
+MINIMUM_THRESHOLD=20  # Maximum allotted time to restart the livereduce service
 DEFAULT_THRESHOLD=300
 # How often we check WATCHDOG_TARGET. Default is 60 seconds.
 INTERVAL="$(/bin/jq --raw-output '.watchdog.interval // 60' "${CONFIG_FILE}")"
@@ -30,8 +31,8 @@ if ! [[ "$INTERVAL" =~ ^[1-9][0-9]*$ ]]; then
   echo "WARNING: Invalid INTERVAL value '$INTERVAL'. Using default: $DEFAULT_INTERVAL" >&2
   INTERVAL=$DEFAULT_INTERVAL
 fi
-# Validate THRESHOLD is a positive integer, otherwise use default
-if ! [[ "$THRESHOLD" =~ ^[1-9][0-9]*$ ]]; then
+# Validate THRESHOLD is a positive integer and larger or equal to MINIMUM_THRESHOLD, otherwise use default
+if ! [[ "$THRESHOLD" =~ ^[1-9][0-9]*$ ]] || (( THRESHOLD < MINIMUM_THRESHOLD )); then
   echo "WARNING: Invalid THRESHOLD value '$THRESHOLD'. Using default: $DEFAULT_THRESHOLD" >&2
   THRESHOLD=$DEFAULT_THRESHOLD
 fi
