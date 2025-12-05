@@ -1,7 +1,7 @@
 #!/bin/bash
 echo "ARGS $*"
 
-# determine the configuration file.
+# determine the configuration file
 if [ $# -ge 1 ]; then
     CONFIG_FILE="${1}"
 else
