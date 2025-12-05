@@ -1,5 +1,5 @@
 [Unit]
-Description=Livereduction Watchdog
+Description=Livereduce Watchdog
 After=livereduce.service
 
 [Service]
