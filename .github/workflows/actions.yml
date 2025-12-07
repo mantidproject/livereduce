@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
     - name: Make quick_check.sh executable
       run: chmod +x test/rpm/quick_check.sh
     - name: Run RPM spec quick check
@@ -22,9 +22,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
     - name: Setup Pixi
-      uses: prefix-dev/setup-pixi@v0.8.14
+      uses: prefix-dev/setup-pixi@v0.9.3
     - name: Build source distribution
       run: | # this is used as part of making the rpm
         pixi run build
@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
     - name: Build and push Docker images
@@ -55,9 +55,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
     - name: Setup Pixi
-      uses: prefix-dev/setup-pixi@v0.8.14
+      uses: prefix-dev/setup-pixi@v0.9.3
     - name: Build sdist
       run: pixi run build
     - name: Build and verify RPM inside Docker
