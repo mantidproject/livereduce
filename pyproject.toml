@@ -1,7 +1,7 @@
 [project]
 name = "livereduce"
 description = "Daemon for running live data reduction with systemd"
-version="1.16"
+version="1.17"
 requires-python = ">=3.9"
 license = { text = "MIT License" }
 authors = [{name="Pete Peterson",email="petersonpf@ornl.gov"}]
