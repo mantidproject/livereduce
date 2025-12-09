@@ -35,7 +35,7 @@ Summary: Watchdog for restarting livereduce daemon
 Requires:  python-%{srcname} = %{version}-%{release}
 
 %description watchdog
-Daemon for running the algorithm StartLiveData
+Daemon that monitors the livereduce log file and restarts service livereduce if necessary
 
 %prep
 %setup -q -n %{srcname}-%{version}
