@@ -80,6 +80,7 @@ Daemon for running the algorithm StartLiveData
 
 %preun watchdog
 %systemd_preun livereduce_watchdog.service
+%{__rm} -f /var/log/SNS_applications/livereduce_watchdog.log*
 
 %postun
 %systemd_postun_with_restart livereduce.service
