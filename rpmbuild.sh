@@ -38,3 +38,4 @@ DIST=$(rpm --eval %{?dist})
 echo "========================================"
 echo "Successfully built rpm. To manually inspect package run"
 echo "rpm -qilRp ~/rpmbuild/RPMS/noarch/python-livereduce-${VERSION}-1${DIST}.noarch.rpm"
+echo "rpm -qilRp ~/rpmbuild/RPMS/noarch/python-livereduce-watchdog-${VERSION}-1${DIST}.noarch.rpm"

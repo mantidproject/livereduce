@@ -5,7 +5,7 @@
 
 Summary: %{summary}
 Name: python-%{srcname}
-Version: 1.16
+Version: 1.17
 Release: %{release}%{?dist}
 Source0: %{srcname}-%{version}.tar.gz
 License: MIT
@@ -25,9 +25,17 @@ Requires: nsd-app-wrap
 Requires: systemd
 
 %description
-There should be a meaningful description, but it is not needed quite yet.
+Daemon for running the algorithm StartLiveData
 
 %{?python_provide:%python_provide python%{python3_pkgversion}-%{srcname}}
+
+%package watchdog
+Summary: Watchdog for restarting livereduce daemon
+# may need to tweak the main package name as macros change
+Requires:  python-%{srcname} = %{version}-%{release}
+
+%description watchdog
+Daemon that monitors the livereduce log file and restarts service livereduce if necessary
 
 %prep
 %setup -q -n %{srcname}-%{version}
@@ -43,6 +51,9 @@ There should be a meaningful description, but it is not needed quite yet.
 %{__install} -m 755 scripts/livereduce.sh %{buildroot}%{_bindir}/
 %{__mkdir} -p %{buildroot}%{_unitdir}/
 %{__install} -m 644 livereduce.service %{buildroot}%{_unitdir}/
+# watchdog service
+%{__install} -m 755 scripts/livereduce_watchdog.sh %{buildroot}%{_bindir}/
+%{__install} -m 644 livereduce_watchdog.service %{buildroot}%{_unitdir}/
 
 %check
 # no test step
@@ -60,15 +71,29 @@ There should be a meaningful description, but it is not needed quite yet.
 %{__chown} snsdata /var/log/SNS_applications/
 %{__chmod} 1755 /var/log/SNS_applications/
 
+%post watchdog
+%systemd_post livereduce_watchdog.service
+
 %preun
 %systemd_preun livereduce.service
 %{__rm} -f /var/log/SNS_applications/livereduce.log*
 
+%preun watchdog
+%systemd_preun livereduce_watchdog.service
+%{__rm} -f /var/log/SNS_applications/livereduce_watchdog.log*
+
 %postun
 %systemd_postun_with_restart livereduce.service
+
+%postun watchdog
+%systemd_postun_with_restart livereduce_watchdog.service
 
 %files
 %doc README.md
 %{_bindir}/livereduce.py
 %{_bindir}/livereduce.sh
 %{_unitdir}/livereduce.service
+
+%files watchdog
+%{_bindir}/livereduce_watchdog.sh
+%{_unitdir}/livereduce_watchdog.service
