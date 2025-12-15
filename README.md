@@ -255,7 +255,7 @@ the watchdog uses a simple bash script for monitoring:
   - Implements restart throttling to prevent repeated restarts within the same inactivity window
   - Logs all monitoring actions and restart decisions to the watchdog log file
 
-### Building and packaging the watchdog
+### Building and Packaging the Watchdog
 
 The watchdog service is distributed as a separate subpackage (`livereduce-watchdog`) within the same RPM
 but can be installed independently.
