@@ -13,7 +13,6 @@
   - [Managing the watchdog service](#managing-the-watchdog-service)
   - [Watchdog Logging](#watchdog-logging)
   - [Watchdog Scripts](#watchdog-scripts)
-  - [Watchdog Behavior](#watchdog-behavior)
   - [Building and packaging the watchdog](#building-and-packaging-the-watchdog)
 - [Developer notes](#developer-notes)
 - [Acknowledgements and other links](#acknowledgements-and-other-links)
