@@ -52,7 +52,8 @@ sudo systemctl restart livereduce
 ```
 The status of the service can be found via
 ```shell
-sudo systemctl status livereduce
+systemctl status livereduce
+sudo systemctl status livereduce  # also shows the last lines of the log file
 ```
 
 Logging
@@ -187,7 +188,8 @@ sudo systemctl restart livereduce_watchdog
 
 Check the watchdog service status:
 ```shell
-sudo systemctl status livereduce_watchdog
+systemctl status livereduce_watchdog
+sudo systemctl status livereduce_watchdog # also shows the last lines of the log file
 ```
 
 **Important operational considerations:**
@@ -217,7 +219,7 @@ This log captures:
 
 To view the watchdog logs in real-time:
 ```shell
-sudo tail -f /var/log/SNS_applications/livereduce_watchdog.log
+tail -f /var/log/SNS_applications/livereduce_watchdog.log
 ```
 
 For systemd journal logs:
