@@ -1,3 +1,22 @@
+## Table of Contents
+
+- [Configuration](#configuration)
+- [Managing the service](#managing-the-service)
+- [Logging](#logging)
+- [Python processing scripts](#python-processing-scripts)
+- [Behavior](#behavior)
+- [Building and packaging](#building-and-packaging)
+  - [Testing](#testing)
+  - [Building the RPM](#building-the-rpm)
+- [The Watchdog Service](#the-watchdog-service)
+  - [Watchdog Configuration](#watchdog-configuration)
+  - [Managing the watchdog service](#managing-the-watchdog-service)
+  - [Watchdog Logging](#watchdog-logging)
+  - [Watchdog Scripts](#watchdog-scripts)
+  - [Building and packaging the watchdog](#building-and-packaging-the-watchdog)
+- [Developer notes](#developer-notes)
+- [Acknowledgements and other links](#acknowledgements-and-other-links)
+
 Configuration
 -------------
 
@@ -33,7 +52,8 @@ sudo systemctl restart livereduce
 ```
 The status of the service can be found via
 ```shell
-sudo systemctl status livereduce
+systemctl status livereduce
+sudo systemctl status livereduce  # also shows the last lines of the log file
 ```
 
 Logging
@@ -122,6 +142,142 @@ pre-commit install
 ```
 
 More information about testing can be found in [test/README.md](test/README.md).
+
+The Watchdog Service
+--------------------
+
+The watchdog service monitors the main `livereduce` service and automatically restarts it
+when it detects that the service has become unresponsive or inactive.
+It operates independently from the main service but works in tandem to ensure continuous live data reduction.
+
+
+### Watchdog Configuration
+
+The watchdog service reads its configuration from the same `/etc/livereduce.conf` file as the main service,
+but uses only a subset of settings specific to monitoring behavior.
+The watchdog-specific configuration is optional and uses sensible defaults if not specified.
+
+The watchdog configuration section supports the following optional keys:
+```json
+{
+  "watchdog": {
+    "interval": 60,
+    "threshold": 300
+  }
+}
+```
+
+Configuration parameters:
+- `watchdog.interval` (default: 60 seconds) - How often the watchdog checks the livereduce log file for activity.
+- `watchdog.threshold` (default: 300 seconds) - Maximum allowed time without log activity
+  before the watchdog considers the service unresponsive and triggers a restart. Must be at least 20 seconds.
+
+If the configuration file does not contain a `watchdog` section,
+the watchdog will use the default values shown above.
+Invalid values will trigger a warning and fall back to defaults.
+
+### Managing the watchdog service
+
+The watchdog service is managed independently of the main `livereduce` service using standard systemd commands:
+
+```shell
+sudo systemctl start livereduce_watchdog
+sudo systemctl stop livereduce_watchdog
+sudo systemctl restart livereduce_watchdog
+```
+
+Check the watchdog service status:
+```shell
+systemctl status livereduce_watchdog
+sudo systemctl status livereduce_watchdog # also shows the last lines of the log file
+```
+
+**Important operational considerations:**
+
+- The watchdog service starts **after** the `livereduce` service
+  (as defined by `After=livereduce.service` in the systemd unit).
+- **Stopping the watchdog does not stop the main `livereduce` service** - it only stops monitoring.
+  The main service will continue running without supervision.
+- **Restarting the watchdog does not restart `livereduce`**
+  unless the watchdog detects that the main service has become unresponsive.
+- The watchdog and main service must be managed separately.
+  Starting/stopping one does not automatically affect the other.
+- The watchdog service has `Restart=always` configured,
+  so systemd will automatically restart the watchdog if it crashes.
+
+### Watchdog Logging
+
+The watchdog maintains its own separate log file at `/var/log/SNS_applications/livereduce_watchdog.log`
+when run as the user `snsdata`.
+
+This log captures:
+- Watchdog startup and configuration validation messages
+- Detection of inactivity (when the main service log hasn't been updated within the threshold)
+- Restart actions taken against the main `livereduce` service
+- The last 20 lines of the main livereduce log at the time of restart (for correlation)
+- Status output from systemctl after triggering a restart
+
+To view the watchdog logs in real-time:
+```shell
+tail -f /var/log/SNS_applications/livereduce_watchdog.log
+```
+
+For systemd journal logs:
+```shell
+sudo journalctl -u livereduce_watchdog -f
+```
+
+**Correlating watchdog and main service logs:**
+
+When the watchdog restarts the main service, it logs a clear marker:
+```
+#############################################################################
+[timestamp] No change for XXX s in /var/log/SNS_applications/livereduce.log
+---- Last 20 lines of /var/log/SNS_applications/livereduce.log before restart:
+[last lines of main log]
+
+restarting livereduce.service.
+```
+
+You can correlate these events with the main service log (`/var/log/SNS_applications/livereduce.log`)
+by comparing timestamps to understand what caused the service to become unresponsive.
+
+### Watchdog Scripts
+
+Unlike the main `livereduce` service which uses Python scripts for data processing,
+the watchdog uses a simple bash script for monitoring:
+
+- [livereduce_watchdog.sh](scripts/livereduce_watchdog.sh) - The main watchdog script executed by systemd.
+  This script:
+  - Reads configuration from `/etc/livereduce.conf` (or a path provided as an argument)
+  - Monitors `/var/log/SNS_applications/livereduce.log` for modification time changes
+  - Enters an infinite loop that checks file activity every `interval` seconds
+  - Triggers a restart of `livereduce.service` via `systemctl restart`
+    if the log hasn't been modified for `threshold` seconds
+  - Implements restart throttling to prevent repeated restarts within the same inactivity window
+  - Logs all monitoring actions and restart decisions to the watchdog log file
+
+### Building and Packaging the Watchdog
+
+The watchdog service is distributed as a separate subpackage (`livereduce-watchdog`) within the same RPM
+but can be installed independently.
+
+The build installs:
+- `livereduce_watchdog.sh` to `/usr/bin/`
+- `livereduce_watchdog.service` systemd unit file to `/usr/lib/systemd/system/`
+
+**Important notes:**
+
+- The watchdog service is **not enabled by default** after installation. You must manually enable it:
+  ```shell
+  sudo systemctl enable livereduce_watchdog
+  sudo systemctl start livereduce_watchdog
+  ```
+- The watchdog package has no additional dependencies beyond standard system utilities
+  (`bash`, `jq`, `systemctl`, `stat`, `tail`).
+- When the watchdog package is removed, its log file (`/var/log/SNS_applications/livereduce_watchdog.log`)
+  is automatically deleted.
+
 
 Acknowledgements and other links
 --------------------------------
