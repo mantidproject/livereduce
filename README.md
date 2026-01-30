@@ -20,7 +20,7 @@
 Configuration
 -------------
 
-The configuration is automatically read from `/etc/livereduce.conf`unless specified as a command line argument.
+The configuration is automatically read from `/etc/livereduce.conf` unless specified as a command line argument.
 Defaults will be attempted to be determined from the environment.
 A minimal configuration to specify using nightly builds of mantid installed in a pixi environment `mantid_dev` is
 ```json
