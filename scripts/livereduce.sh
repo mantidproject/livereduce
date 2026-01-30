@@ -38,6 +38,9 @@ if [ -z "${NSD_APP_WRAP}" ];then
     exit 1
 fi
 
-# launch livereduce.py
+# Tell shellcheck where to find the sourced script for static analysis
+# shellcheck source=./nsd-app-wrap.sh
+# Disable SC1091 (file not found) since the path is resolved at runtime
+# shellcheck disable=SC1091
 . "${NSD_APP_WRAP}"  # load bash function `pixi_launch`
 pixi_launch "${PIXI_ENVIRON}" python "${APPLICATION}" "$@"

@@ -4,9 +4,13 @@
 
 setup() {
     # Create temporary directory for tests
-    export TEST_DIR="$(mktemp -d)"
+    local temp_dir
+    temp_dir="$(mktemp -d)"
+    export TEST_DIR="${temp_dir}"
     export HOME="${TEST_DIR}"
-    export SCRIPT_DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
+    local script_dir
+    script_dir="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
+    export SCRIPT_DIR="${script_dir}"
     export LIVEREDUCE_SCRIPT="${SCRIPT_DIR}/scripts/livereduce.sh"
 
     # Create mock directories
@@ -188,7 +192,7 @@ EOF
 
     run "${test_script}"
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "Failed to find nsd-app-wrap.sh" ]]
+    [[ "$output" =~ Failed\ to\ find\ nsd-app-wrap.sh ]]
 }
 
 # Test: Complete environment resolution logic
@@ -287,11 +291,10 @@ EOF
 
 # Test: Variable assignment check
 @test "empty variable check works as expected" {
-    NSD_APP_WRAP=""
+    export NSD_APP_WRAP=""
     run bash -c '[ -z "${NSD_APP_WRAP}" ] && echo "empty" || echo "not empty"'
     [ "$output" = "empty" ]
 
-    NSD_APP_WRAP="/some/path"
     run bash -c 'NSD_APP_WRAP="/some/path"; [ -z "${NSD_APP_WRAP}" ] && echo "empty" || echo "not empty"'
     [ "$output" = "not empty" ]
 }
