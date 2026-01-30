@@ -32,8 +32,8 @@ rm -f "${HOME}"/.cache/fontconfig/*
 THISFILE=$(readlink -f "$0")  # absolute path of this script
 INSTALLDIR=$(dirname "${THISFILE}")
 APPLICATION="${INSTALLDIR}/livereduce.py"
-NSD_APP_WRAP="${INSTALLDIR}/nsd-app-wrap.sh"  # assumes nsd-app-wrap.sh in the same directory
-if [ ! -f "${NSD_APP_WRAP}" ]; then
+NSD_APP_WRAP="$(which nsd-app-wrap.sh 2>/dev/null || true)"
+if [ -z "${NSD_APP_WRAP}" ]; then
     echo "Failed to find nsd-app-wrap.sh"
     exit 1
 fi

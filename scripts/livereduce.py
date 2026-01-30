@@ -151,8 +151,9 @@ class Config:
         self.logger.info("Finished parsing configuration")
 
         # log the pixi environment and mantid's location. Search CONDA_ENV first for backward compatibility
-        self.pixi_env = json_doc.get("CONDA_ENV", "mantid_dev").replace("-dev", "_dev").replace("-qa", "_qa")
+        self.pixi_env = json_doc.get("CONDA_ENV", "mantid_dev")
         self.pixi_env = json_doc.get("PIXI_ENV", self.pixi_env)
+        self.pixi_env = self.pixi_env.replace("-dev", "_dev").replace("-qa", "_qa")
         self.logger.info(f"PIXI_ENV = {self.pixi_env}")
         self.logger.info(f'mantid_loc="{os.path.dirname(mantid.__file__)}"')
 
