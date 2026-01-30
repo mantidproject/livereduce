@@ -16,13 +16,11 @@ if [ -f "${CONFIG_FILE}" ]; then
         PIXI_ENVIRON="$(/bin/jq --raw-output '.PIXI_ENV' "${CONFIG_FILE}")"
     elif grep -q CONDA_ENV "${CONFIG_FILE}"; then  # backward compatibility
         echo "Determine pixi environment from CONDA_ENV entry in \"${CONFIG_FILE}\""
-        CONDA_ENVIRON="$(/bin/jq --raw-output '.CONDA_ENV' "${CONFIG_FILE}")"
-        if [[ "${CONDA_ENVIRON}" == *-dev ]]; then  # substitute dash for underscore in dev/qa suffix
-            PIXI_ENVIRON="${CONDA_ENVIRON%-dev}_dev"
-        elif [[ "${CONDA_ENVIRON}" == *-qa ]]; then
-            PIXI_ENVIRON="${CONDA_ENVIRON%-qa}_qa"
-        else
-            PIXI_ENVIRON="${CONDA_ENVIRON}"
+        PIXI_ENVIRON="$(/bin/jq --raw-output '.CONDA_ENV' "${CONFIG_FILE}")"
+        if [[ "${PIXI_ENVIRON}" == *-dev ]]; then  # substitute dash for underscore in dev/qa suffix
+            PIXI_ENVIRON="${PIXI_ENVIRON%-dev}_dev"
+        elif [[ "${PIXI_ENVIRON}" == *-qa ]]; then
+            PIXI_ENVIRON="${PIXI_ENVIRON%-qa}_qa"
         fi
     fi
 fi
