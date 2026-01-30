@@ -33,7 +33,7 @@ THISFILE=$(readlink -f "$0")  # absolute path of this script
 INSTALLDIR=$(dirname "${THISFILE}")
 APPLICATION="${INSTALLDIR}/livereduce.py"
 NSD_APP_WRAP="${INSTALLDIR}/nsd-app-wrap.sh"  # assumes nsd-app-wrap.sh in the same directory
-if [ -z "${NSD_APP_WRAP}" ];then
+if [ ! -f "${NSD_APP_WRAP}" ]; then
     echo "Failed to find nsd-app-wrap.sh"
     exit 1
 fi
