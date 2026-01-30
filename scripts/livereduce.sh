@@ -8,27 +8,36 @@ else
     CONFIG_FILE=/etc/livereduce.conf
 fi
 
-# determine the conda environment
-CONDA_ENVIRON="mantid-dev"  # default
+# determine the pixi environment
+PIXI_ENVIRON="mantid_dev"  # default
 if [ -f "${CONFIG_FILE}" ]; then
-    if grep -q CONDA_ENV "${CONFIG_FILE}"; then
-        echo "Determine conda environment from \"${CONFIG_FILE}"\"
+    if grep -q PIXI_ENV "${CONFIG_FILE}"; then
+        echo "Determine pixi environment from \"${CONFIG_FILE}\""
+        PIXI_ENVIRON="$(/bin/jq --raw-output '.PIXI_ENV' "${CONFIG_FILE}")"
+    elif grep -q CONDA_ENV "${CONFIG_FILE}"; then  # backward compatibility
+        echo "Determine pixi environment from CONDA_ENV entry in \"${CONFIG_FILE}\""
         CONDA_ENVIRON="$(/bin/jq --raw-output '.CONDA_ENV' "${CONFIG_FILE}")"
+        if [[ "${CONDA_ENVIRON}" == *-dev ]]; then  # substitute dash for underscore in dev/qa suffix
+            PIXI_ENVIRON="${CONDA_ENVIRON%-dev}_dev"
+        elif [[ "${CONDA_ENVIRON}" == *-qa ]]; then
+            PIXI_ENVIRON="${CONDA_ENVIRON%-qa}_qa"
+        fi
     fi
 fi
 
 # remove font-cache to side step startup speed issue
 rm -f "${HOME}"/.cache/fontconfig/*
 
-# location of this script
-THISFILE=$(readlink -f "$0")
-INSTALLDIR=$(dirname "${THISFILE}")   # directory of executable
-
-# launch the application using nsd-conda-wrap.sh
-NSD_CONDA_WRAP=$(which nsd-conda-wrap.sh)
-if [ -z "${NSD_CONDA_WRAP}" ];then
-    echo "Failed to find nsd-conda-wrap.sh"
+# location of livereduce.py and nsd-app-wrap.sh
+THISFILE=$(readlink -f "$0")  # absolute path of this script
+INSTALLDIR=$(dirname "${THISFILE}")
+APPLICATION="${INSTALLDIR}/livereduce.py"
+NSD_APP_WRAP="${INSTALLDIR}/nsd-app-wrap.sh"  # assumes nsd-app-wrap.sh in the same directory
+if [ -z "${NSD_APP_WRAP}" ];then
+    echo "Failed to find nsd-app-wrap.sh"
     exit 1
 fi
-APPLICATION="${INSTALLDIR}/livereduce.py"
-exec "${NSD_CONDA_WRAP}" "${CONDA_ENVIRON}" --classic python3 "${APPLICATION}" "$@"
+
+# launch livereduce.py
+. "${NSD_APP_WRAP}"  # load bash function `pixi_launch`
+pixi_launch "${PIXI_ENVIRON}" python "${APPLICATION}" "$@"
