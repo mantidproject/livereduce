@@ -31,7 +31,7 @@ A minimal configuration to specify using nightly builds of mantid installed in a
 ```
 For backwards compatibility, a `CONDA_ENV` variable can be specified instead of `PIXI_ENV`,
 but its value will be used to start a pixi environment, not a conda environment.
-In additions, an assignment such as `CONDA_ENV="mantid-dev"` translates to pixi environmnent `"mantid_dev"`,
+In additions, an assignment such as `CONDA_ENV="mantid-dev"` translates to pixi environment `"mantid_dev"`,
 and likewise suffix `"-qa"` translates to `"_qa"`.
 
 For testing, a configuration file can be supplied as a command line argument when running
