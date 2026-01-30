@@ -21,6 +21,8 @@ if [ -f "${CONFIG_FILE}" ]; then
             PIXI_ENVIRON="${CONDA_ENVIRON%-dev}_dev"
         elif [[ "${CONDA_ENVIRON}" == *-qa ]]; then
             PIXI_ENVIRON="${CONDA_ENVIRON%-qa}_qa"
+        else
+            PIXI_ENVIRON="${CONDA_ENVIRON}"
         fi
     fi
 fi
