@@ -1,4 +1,6 @@
 line-length = 120
+
+[lint]
 # https://beta.ruff.rs/docs/rules/
 select = ["A", "ARG", "BLE", "E", "F", "I", "PL", "PT", "RUF", "S", "UP"]
 ignore = []

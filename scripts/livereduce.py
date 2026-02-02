@@ -163,7 +163,7 @@ class Config:
             # to differentiate from other apps
             UsageService.setApplicationName("livereduce")
         except Exception:
-            self.logger.error("General error while importing " "mantid.kernel.ConfigService:", exc_info=True)
+            self.logger.error("General error while importing mantid.kernel.ConfigService:", exc_info=True)
             raise
 
         self.instrument = self.__getSetInstrument(json_doc.get("instrument"))
@@ -379,12 +379,12 @@ class EventHandler(pyinotify.ProcessEvent):
         if event.pathname in self.scriptfiles.keys():
             newmd5 = self._md5(event.pathname)
             if newmd5 == self.scriptfiles[event.pathname]:
-                self.logger.info(f'Processing script "{event.pathname}" has not changed md5' "sum - continuing")
+                self.logger.info(f'Processing script "{event.pathname}" has not changed md5sum - continuing')
             else:
                 # update the md5 sum associated with the file
                 self.scriptfiles[event.pathname] = newmd5
                 # restart the service
-                self.logger.info(f'Processing script "{event.pathname}" changed - restarting ' '"StartLiveData"')
+                self.logger.info(f'Processing script "{event.pathname}" changed - restarting "StartLiveData"')
                 self.livemanager.restart_and_clear()
 
 
