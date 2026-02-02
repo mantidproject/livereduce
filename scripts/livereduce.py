@@ -129,7 +129,7 @@ class Config:
     r"""
     Configuration stored in json format. The keys are:
     * 'instrument' - default from ~/.mantid/Mantid.user.properties
-    * 'CONDA_ENV' - if not specified, defaults to 'mantid-dev'
+    * 'PIXI_ENV' - if not specified, defaults to 'mantid_dev'
     * 'script_dir' - default value is '/SNS/{instrument}/shared/livereduce'
     """
 
@@ -150,9 +150,11 @@ class Config:
             json_doc = dict()
         self.logger.info("Finished parsing configuration")
 
-        # log the conda environment and mantid's location
-        self.conda_env = json_doc.get("CONDA_ENV", "mantid-dev")
-        self.logger.info(f"CONDA_ENV = {self.conda_env}")
+        # log the pixi environment and mantid's location. Search CONDA_ENV first for backward compatibility
+        self.pixi_env = json_doc.get("CONDA_ENV", "mantid_dev")
+        self.pixi_env = json_doc.get("PIXI_ENV", self.pixi_env)
+        self.pixi_env = self.pixi_env.replace("-dev", "_dev").replace("-qa", "_qa")
+        self.logger.info(f"PIXI_ENV = {self.pixi_env}")
         self.logger.info(f'mantid_loc="{os.path.dirname(mantid.__file__)}"')
 
         try:
@@ -313,7 +315,7 @@ class Config:
     def toJson(self, **kwargs):
         args = dict(
             instrument=self.instrument.shortName(),
-            CONDA_ENV=self.conda_env,
+            PIXI_ENV=self.pixi_env,
             script_dir=self.script_dir,
             update_every=self.updateEvery,
             preserve_events=self.preserveEvents,

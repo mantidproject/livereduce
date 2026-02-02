@@ -20,15 +20,20 @@
 Configuration
 -------------
 
-The configuration is automatically read from `/etc/livereduce.conf`unless specified as a command line argument.
+The configuration is automatically read from `/etc/livereduce.conf` unless specified as a command line argument.
 Defaults will be attempted to be determined from the environment.
-A minimal configuration to specify using nightly builds of mantid installed in a conda environment `mantid-dev` is
+A minimal configuration to specify using nightly builds of mantid installed in a pixi environment `mantid_dev` is
 ```json
 {
   "instrument": "PG3",
-  "CONDA_ENV": "mantid-dev"
+  "PIXI_ENV": "mantid_dev"
 }
 ```
+For backwards compatibility, a `CONDA_ENV` variable can be specified instead of `PIXI_ENV`,
+but its value will be used to start a pixi environment, not a conda environment.
+In addition, an assignment such as `CONDA_ENV="mantid-dev"` translates to pixi environment `"mantid_dev"`,
+and likewise suffix `"-qa"` translates to `"_qa"`.
+
 For testing, a configuration file can be supplied as a command line argument when running
 ```shell
 $ python scripts/livereduce.py ./livereduce.conf
@@ -74,8 +79,8 @@ Python processing scripts
 
 
 - [livereduce.sh](../scripts/livereduce.sh) is the script that is run when the service is started.
-  This shell script invokes `livereduce.py` within a conda environment
-  specified in the configuration file. Otherwise the environment is set to `"mantid-dev"`.
+  This shell script invokes `livereduce.py` within a pixi environment
+  specified in the configuration file. Otherwise the environment is set to `"mantid_dev"`.
 - [livereduce.py](../scripts/livereduce.py) script manages live data reduction using the Mantid framework.
   It configures logging, handles signals for graceful termination, reads the configuration JSON,
   and manages live data processing with Mantid's StartLiveData and MonitorLiveData algorithms.
