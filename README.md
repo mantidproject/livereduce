@@ -1,5 +1,6 @@
 ## Table of Contents
 
+- **[Live Data Reduction Guide](docs/README.md)** - Comprehensive guide for users and developers
 - [Configuration](#configuration)
 - [Managing the service](#managing-the-service)
 - [Logging](#logging)
@@ -40,7 +41,7 @@ $ python scripts/livereduce.py ./livereduce.conf
 ```
 If the instrument is not defined in the configuration file,
 the software will ask mantid for the default instrument using
-`mantid.kerel.ConfigService.getInstrument()` ([docs](https://docs.mantidproject.org/nightly/api/python/mantid/kernel/ConfigServiceImpl.html#mantid.kernel.ConfigServiceImpl.getInstrument)).
+`mantid.kernel.ConfigService.getInstrument()` ([docs](https://docs.mantidproject.org/nightly/api/python/mantid/kernel/ConfigServiceImpl.html#mantid.kernel.ConfigServiceImpl.getInstrument)).
 The default instrument is controlled in the [mantid properties files](https://docs.mantidproject.org/nightly/concepts/PropertiesFile.html)
 and is typically defined in `/etc/mantid.local.properties`.
 
