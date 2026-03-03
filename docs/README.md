@@ -10,9 +10,6 @@ This directory contains comprehensive documentation for the livereduce system, w
 For Understanding
     └── Architecture ──────→ System design and data flow
 
-For Using
-    └── User Guide ────────→ Interactive StartLiveData
-
 For Setting Up
     ├── Developer Guide ───→ Installing daemon on servers
     ├── Processing Scripts → Writing reduction scripts
@@ -27,9 +24,6 @@ For Contributing
 ```
 
 ## Documentation Structure
-
-### For Users
-- **[User Guide](user-guide.md)** - Using StartLiveData interactively in Mantid Workbench
 
 ### For Developers
 - **[Architecture](architecture.md)** - System components, data flow, and design overview
@@ -47,7 +41,6 @@ For Contributing
 ## Quick Links
 
 ### I want to...
-- **Monitor my experiment live**: See [User Guide](user-guide.md)
 - **Set up live reduction for my beamline**: See [Developer Guide](developer-guide.md)
 - **Write processing scripts**: See [Processing Scripts](processing-scripts.md)
 - **Integrate with existing workflows**: See [Examples](examples.md)
@@ -60,9 +53,7 @@ For Contributing
 
 Live reduction provides real-time data processing as the Data Acquisition System (DAS) collects neutron scattering data. Scientists can monitor results and adjust experimental parameters without waiting for runs to complete.
 
-**Two main approaches:**
-1. **Interactive** - Use Mantid Workbench's `StartLiveData` algorithm
-2. **Daemon-based** - Automated processing via the `livereduce` systemd service
+The `livereduce` systemd service provides automated processing for beamline operations. For interactive usage of live data in Mantid Workbench, see the [Mantid StartLiveData documentation](https://docs.mantidproject.org/nightly/algorithms/StartLiveData-v1.html).
 
 ## Additional Resources
 
