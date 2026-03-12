@@ -6,7 +6,7 @@
 SPECFILE="$(dirname "$(realpath "$0")")/livereduce.spec"
 
 # Get the version from the pyproject.toml file
-VERSION=$(grep ^version pyproject.toml | cut -d "=" -f 2 | sed 's/"//g' | tr -d ' ')
+VERSION=$(pixi workspace version get)
 echo "version in pyproject.toml is ${VERSION}"
 
 # Create the source tarball
