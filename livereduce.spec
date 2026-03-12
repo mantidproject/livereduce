@@ -2,10 +2,14 @@
 %global summary Daemon for running live data reduction with systemd
 # This only supports python3
 %define release 1
+# give default version for linting
+%if "%{?version}" == ""
+%define version 0.0
+%endif
 
 Summary: %{summary}
 Name: python-%{srcname}
-Version: 1.18
+Version: %{version}
 Release: %{release}%{?dist}
 Source0: %{srcname}-%{version}.tar.gz
 License: MIT
