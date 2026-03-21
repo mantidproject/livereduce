@@ -288,6 +288,7 @@ class Config:
             UpdateEvery=self.updateEvery,
             PreserveEvents=self.preserveEvents,
             AccumulationMethod=self.accumMethod,
+            AccumulationWorkspace=mtd.unique_hidden_name(prefix="input_"),
             OutputWorkspace="result",
         )
 
