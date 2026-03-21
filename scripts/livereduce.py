@@ -82,7 +82,9 @@ class LiveDataManager:
         """Determine if mantid is running and shuts it down"""
         if "mantid" in locals() or "mantid" in globals():
             cls.logger.info("stopping live data processing")
-            mantid.AlgorithmManager.cancelAll()
+            mantid.AlgorithmManager.shutdown()  # wait until all asynchronous-started algorithms complete
+            if mantid.AlgorithmManager.runningInstancesOf("MonitorLiveData"):
+                raise RuntimeError("MonitorLiveData algorithm could not be stopped")
         else:
             cls.logger.info("mantid not initialized - nothing to cleanup")
 
