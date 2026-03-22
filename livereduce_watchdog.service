@@ -4,6 +4,7 @@ After=livereduce.service
 
 [Service]
 WorkingDirectory=/tmp
+User=root
 ExecStart=/usr/bin/livereduce_watchdog.sh
 Restart=always
 RestartSec=10
