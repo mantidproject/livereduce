@@ -290,7 +290,6 @@ class Config:
             UpdateEvery=self.updateEvery,
             PreserveEvents=self.preserveEvents,
             AccumulationMethod=self.accumMethod,
-            AccumulationWorkspace=mtd.unique_hidden_name(prefix="input_"),
             OutputWorkspace="result",
         )
 
@@ -304,7 +303,7 @@ class Config:
 
         if self.postProcScriptExist:
             self.logger.info(f"Using PostProcessingScriptFilename '{self.postProcScript}'")
-            args["AccumulationWorkspace"] = "accumulation"
+            args["AccumulationWorkspace"] = mtd.unique_hidden_name(prefix="accumulation_")
             args["PostProcessingScriptFilename"] = self.postProcScript
 
         if self.periods is not None:
