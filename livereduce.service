@@ -1,6 +1,6 @@
 [Unit]
 Description=Live processing service
-StartLimitInterval=8640
+StartLimitIntervalSec=8640
 StartLimitBurst=1000
 
 [Service]
