@@ -109,7 +109,10 @@ def sigterm_handler(sig_received, frame):  # noqa: ARG001
     msg = f"received {sig_name[sig_received]}({sig_received})"
     # logger.debug( "SIGTERM received")
     logger.info(msg)
-    LiveDataManager.stop()
+    try:
+        LiveDataManager.stop()  # may raise if algorithm MonitorLiveData does not finish
+    except RuntimeError as ex:
+        logger.error(ex)
     if sig_received == signal.SIGINT:
         raise KeyboardInterrupt(msg)
     elif sig_received == signal.SIGTERM:
