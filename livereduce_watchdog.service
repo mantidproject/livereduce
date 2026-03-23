@@ -4,7 +4,7 @@ After=livereduce.service
 
 [Service]
 WorkingDirectory=/tmp
-User=root
+User=snsdata
 ExecStart=/usr/bin/livereduce_watchdog.sh
 Restart=always
 RestartSec=10
