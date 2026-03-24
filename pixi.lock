@@ -7,8 +7,6 @@ environments:
     - url: https://prefix.dev/pixi-build-backends/
     indexes:
     - https://pypi.org/simple
-    options:
-      pypi-prerelease-mode: if-necessary-or-explicit
     packages:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
@@ -1431,8 +1429,8 @@ packages:
   timestamp: 1727963148474
 - pypi: ./
   name: livereduce
-  version: '1.19'
-  sha256: 359b897d10616e6e9d2e72da299ca6d6a4e6b08f62a3880b39651efccb8c1201
+  version: '1.20'
+  sha256: d48559c0f7187c479bd5838a005becac8384476428cb3128630b70cd3f665323
   requires_python: '>=3.9'
   editable: true
 - conda: https://conda.anaconda.org/conda-forge/linux-64/lz4-c-1.10.0-h5888daf_1.conda

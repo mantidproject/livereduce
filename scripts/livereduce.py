@@ -82,7 +82,9 @@ class LiveDataManager:
         """Determine if mantid is running and shuts it down"""
         if "mantid" in locals() or "mantid" in globals():
             cls.logger.info("stopping live data processing")
-            mantid.AlgorithmManager.cancelAll()
+            mantid.AlgorithmManager.shutdown()  # wait until all asynchronous-started algorithms complete
+            if mantid.AlgorithmManager.runningInstancesOf("MonitorLiveData"):
+                raise RuntimeError("MonitorLiveData algorithm could not be stopped")
         else:
             cls.logger.info("mantid not initialized - nothing to cleanup")
 
@@ -107,7 +109,10 @@ def sigterm_handler(sig_received, frame):  # noqa: ARG001
     msg = f"received {sig_name[sig_received]}({sig_received})"
     # logger.debug( "SIGTERM received")
     logger.info(msg)
-    LiveDataManager.stop()
+    try:
+        LiveDataManager.stop()  # may raise if algorithm MonitorLiveData does not finish
+    except RuntimeError as ex:
+        logger.error(ex)
     if sig_received == signal.SIGINT:
         raise KeyboardInterrupt(msg)
     elif sig_received == signal.SIGTERM:
@@ -301,7 +306,7 @@ class Config:
 
         if self.postProcScriptExist:
             self.logger.info(f"Using PostProcessingScriptFilename '{self.postProcScript}'")
-            args["AccumulationWorkspace"] = "accumulation"
+            args["AccumulationWorkspace"] = mtd.unique_hidden_name(prefix="accumulation_")
             args["PostProcessingScriptFilename"] = self.postProcScript
 
         if self.periods is not None:
