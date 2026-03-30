@@ -371,7 +371,9 @@ RPM development and testing is described in the [RPM testing guide](../test/rpm/
 
 ### Building the RPM
 
-This package uses a hand-written spec file for releasing on rpm based systems. To build:
+This package uses a hand-written spec file for releasing on rpm based systems.
+To build, run script `rpmbuid.sh` in an environment containing the RPM building framework.
+Host ndav.sns.gov has all necessary dependencies.
 
 ```bash
 ./rpmbuild.sh
