@@ -306,7 +306,7 @@ class Config:
 
         if self.postProcScriptExist:
             self.logger.info(f"Using PostProcessingScriptFilename '{self.postProcScript}'")
-            args["AccumulationWorkspace"] = mtd.unique_hidden_name(prefix="accumulation_")
+            args["AccumulationWorkspace"] = mtd.unique_name(prefix="accumulation_")
             args["PostProcessingScriptFilename"] = self.postProcScript
 
         if self.periods is not None:
