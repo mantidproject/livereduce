@@ -26,6 +26,7 @@ BuildRequires: systemd-rpm-macros
 Requires: python%{python3_pkgversion}
 Requires: jq
 Requires: nsd-app-wrap
+Requires: polkit
 Requires: systemd
 
 %description
@@ -103,4 +104,4 @@ Daemon that monitors the livereduce log file and restarts service livereduce if 
 %files watchdog
 %{_bindir}/livereduce_watchdog.sh
 %{_unitdir}/livereduce_watchdog.service
-%{_sysconfdir}/polkit-1/rules.d/50-snsdata-livereduce.rules
+%config(noreplace) %{_sysconfdir}/polkit-1/rules.d/50-snsdata-livereduce.rules
