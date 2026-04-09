@@ -1,0 +1,9 @@
+polkit.addRule(function(action, subject) {
+    var verb = action.lookup("verb");
+    if (action.id == "org.freedesktop.systemd1.manage-units" &&
+        subject.user == "snsdata" &&
+        action.lookup("unit") == "livereduce.service" &&
+        (verb == "start" || verb == "stop" || verb == "restart")) {
+        return polkit.Result.YES;
+    }
+});

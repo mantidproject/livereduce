@@ -1425,10 +1425,9 @@ packages:
   timestamp: 1774072609062
 - pypi: ./
   name: livereduce
-  version: '1.21'
-  sha256: b6c2e53a8d551242fe901a7201f33aee1410f22c767b4ea8241652df0478e2f6
+  version: '1.22'
+  sha256: d3321020489459e10928824ccbebcf38ba9c4e4cf77b9d4d3dbff6d20ebe87b2
   requires_python: '>=3.9'
-  editable: true
 - conda: https://conda.anaconda.org/conda-forge/linux-64/lz4-c-1.10.0-h5888daf_1.conda
   sha256: 47326f811392a5fd3055f0f773036c392d26fdb32e4d8e7a8197eed951489346
   md5: 9de5350a85c4a20c685259b889aa6393
