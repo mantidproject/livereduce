@@ -79,7 +79,7 @@ The CI workflow (`.github/workflows/actions.yml`) automatically:
 - Runs `pixi run rpm-all`, exercising build + install + systemd dry-run tests for both RPMs
 - Uploads the built RPMs as the `livereduce-rpms` workflow artifact
 
-**Note**: Additional static analysis with `rpmlint` is being added in a separate PR.
+**Note**: Static analysis with `rpmlint` runs in CI via the `rpmlint` job.
 
 ## Prerequisites
 
