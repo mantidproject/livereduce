@@ -10,17 +10,47 @@ The LiveReduce RPM package includes proper systemd scriptlets and user/group req
 
 ```
 test/rpm/
-├── build_and_test.sh          # Main orchestrator for local testing
 ├── quick_check.sh             # Fast spec file validation (runs in CI)
-├── setup_test_environment.sh  # One-time environment setup
+├── setup_test_environment.sh  # One-time host environment setup (no Docker)
 └── README.md                  # This file
 ```
 
-**Note**: Docker-based RPM building and testing is handled by the CI workflow. See `.github/workflows/actions.yml` and the `Dockerfile` in the project root.
+Container-based build and test is driven by Pixi tasks defined in `pyproject.toml` — there is no separate orchestrator script. See **Building the RPM with Pixi** below.
 
 ## Quick Start
 
-### Local Development Testing
+### Building the RPM with Pixi (recommended)
+
+The composite task `rpm-all` builds the RPMs in a RHEL9 container, installs them (including the `livereduce-watchdog` subpackage), runs systemd dry-run checks, and copies the resulting `.rpm` files back to the host.
+
+**Prerequisite**: your user must be in the `docker` group.
+
+```bash
+sudo usermod -aG docker $USER && newgrp docker  # one-time
+pixi run rpm-all
+```
+
+Each subtask is independently runnable:
+
+| Task | What it does |
+|---|---|
+| `pixi run rpm-build` | Builds the sdist (`pixi run build`) and the `livereduce-rpm:local` Docker image containing the built RPMs. Verifies caller is in `docker` group. |
+| `pixi run rpm-test` | Spins a fresh container from `livereduce-rpm:local`, installs both RPMs with `--nodeps`, checks file layout / log-dir ownership, and runs `systemctl --dry-run enable/disable` for `livereduce.service` and `livereduce_watchdog.service`. |
+| `pixi run rpm-fetch` | Copies the built RPMs out of the image into `dist/rpm/` (or `$LIVEREDUCE_RPM_DIST_DIR`). |
+
+Override the fetch target dir:
+
+```bash
+LIVEREDUCE_RPM_DIST_DIR=/tmp/rpms pixi run rpm-fetch
+```
+
+Drop into the build image to debug:
+
+```bash
+docker run -it --rm livereduce-rpm:local bash
+```
+
+### Host-only spec validation (no Docker)
 
 1. **Set up your environment** (one-time setup):
 ```bash
@@ -46,9 +76,8 @@ This will:
 
 The CI workflow (`.github/workflows/actions.yml`) automatically:
 - Runs `quick_check.sh` to validate the spec file
-- Builds the RPM in an isolated Docker container (using `Dockerfile`)
-- Installs the RPM and verifies basic functionality
-- Runs systemd dry-run tests (`systemctl --dry-run enable/disable`)
+- Runs `pixi run rpm-all`, exercising build + install + systemd dry-run tests for both RPMs
+- Uploads the built RPMs as the `livereduce-rpms` workflow artifact
 
 **Note**: Additional static analysis with `rpmlint` is being added in a separate PR.
 
@@ -96,18 +125,6 @@ Fast validation of spec file requirements:
 
 **CI Integration**: This runs automatically in the `rpm-quick-check` CI job.
 
-### build_and_test.sh
-
-Orchestrates local RPM building and testing:
-- Uses the existing `rpmbuild.sh` script
-- Builds the RPM package
-- Runs basic validation
-
-**Usage**:
-```bash
-./test/rpm/build_and_test.sh
-```
-
 ## Local RPM Testing Workflow
 
 On SNS systems (like `ndav`), the typical workflow is:
@@ -141,19 +158,20 @@ The `.github/workflows/actions.yml` currently includes:
 
 1. **rpm-quick-check**: Validates spec file requirements
 2. **python-build**: Builds source distribution with pixi
-3. **rpm**: Full Docker-based RPM build and installation test
-
-**Note**: Additional jobs like `rpmlint` for static analysis are being added in separate PRs.
+3. **rpm**: Runs `pixi run rpm-all` (build + test + fetch) and uploads the resulting RPMs as an artifact
+4. **rpmlint**: Static analysis of the spec file (separate Dockerfile)
 
 ### Docker-based Testing
 
-The `Dockerfile` in the project root:
+The `Dockerfile` in the project root produces only the built RPMs (at `/home/builder/rpmbuild/RPMS/noarch/`):
 - Uses Red Hat UBI9 as the base image
 - Installs EPEL and build tools
 - Creates required users and groups
+- Gives `builder` passwordless sudo so `rpm-test` can install / call `systemctl` against the image
 - Uses `dnf builddep` to install dependencies from spec file
-- Builds and installs the RPM
-- Runs systemd dry-run tests
+- Builds the RPMs via `rpmbuild.sh`
+
+Install + systemd dry-run tests run **outside** the image build, in the `rpm-test` pixi task, so the build and test stages are independently re-runnable.
 
 ## Troubleshooting
 
