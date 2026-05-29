@@ -18,7 +18,7 @@ RUN id snsdata
 # Create builder user with passwordless sudo so rpm-test can install
 # RPMs and exercise systemctl inside this image without changing user.
 RUN useradd builder
-RUN dnf install -y sudo && echo 'builder ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/builder
+RUN dnf install -y sudo && echo 'builder ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/builder && chmod 0440 /etc/sudoers.d/builder
 USER builder
 WORKDIR /home/builder
 
