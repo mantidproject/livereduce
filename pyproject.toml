@@ -50,8 +50,8 @@ build = "hatchling build -t sdist"
 [tool.pixi.tasks.rpm-build]
 cmd = """
 bash -ec '
-  id -nG "$USER" | tr " " "\\n" | grep -qx docker || {
-    echo "ERROR: user must be in docker group (sudo usermod -aG docker $USER && newgrp docker)"
+  id -nG | grep -qw docker || {
+    echo "ERROR: current user ($(id -un)) must be in docker group (sudo usermod -aG docker $(id -un) && newgrp docker)"
     exit 1
   }
   docker build --tag livereduce-rpm:local -f Dockerfile .
