@@ -47,5 +47,52 @@ bats-core = "*"
 [tool.pixi.tasks]
 build = "hatchling build -t sdist"
 
+[tool.pixi.tasks.rpm-build]
+cmd = """
+bash -ec '
+  id -nG | grep -qw docker || {
+    echo "ERROR: current user ($(id -un)) must be in docker group (sudo usermod -aG docker $(id -un) && newgrp docker)"
+    exit 1
+  }
+  docker build --tag livereduce-rpm:local -f Dockerfile .
+'
+"""
+depends-on = ["build"]
+
+[tool.pixi.tasks.rpm-test]
+cmd = """
+docker run --rm livereduce-rpm:local bash -ec '
+  RPM_DIR=/home/builder/rpmbuild/RPMS/noarch
+  sudo rpm -ivh --nodeps $RPM_DIR/*.noarch.rpm
+  test -f /usr/bin/livereduce.sh
+  test -f /usr/bin/livereduce_watchdog.sh
+  test -f /usr/lib/systemd/system/livereduce.service
+  test -f /usr/lib/systemd/system/livereduce_watchdog.service
+  test -f /etc/polkit-1/rules.d/50-snsdata-livereduce.rules
+  test -d /var/log/SNS_applications
+  test "$(stat -c %U /var/log/SNS_applications)" = snsdata
+  test "$(stat -c %a /var/log/SNS_applications)" = 1755
+  sudo systemctl --dry-run enable  livereduce.service
+  sudo systemctl --dry-run disable livereduce.service
+  sudo systemctl --dry-run enable  livereduce_watchdog.service
+  sudo systemctl --dry-run disable livereduce_watchdog.service
+'
+"""
+depends-on = ["rpm-build"]
+
+[tool.pixi.tasks.rpm-fetch]
+cmd = """
+mkdir -p "$LIVEREDUCE_RPM_DIST_DIR" \
+  && CID=$(docker create livereduce-rpm:local) \
+  && docker cp "$CID:/home/builder/rpmbuild/RPMS/noarch/." "$LIVEREDUCE_RPM_DIST_DIR/" \
+  && docker rm "$CID" >/dev/null \
+  && ls -la "$LIVEREDUCE_RPM_DIST_DIR"
+"""
+env = { LIVEREDUCE_RPM_DIST_DIR = "dist/rpm" }
+depends-on = ["rpm-build"]
+
+[tool.pixi.tasks.rpm-all]
+depends-on = ["rpm-build", "rpm-test", "rpm-fetch"]
+
 [tool.pixi.feature.test.tasks]
 test-bash = "bats test/test_livereduce.bats"
