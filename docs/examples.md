@@ -117,67 +117,50 @@ This demonstrates:
 **Processing script:** `/SNS/POWGEN/shared/livereduce/reduce_POWGEN_live_proc.py`
 
 ```python
-from mantid.simpleapi import (
-    AlignAndFocusPowder,
-    ConvertUnits,
-    Rebin,
-    SaveNexus
-)
+from mantid.simpleapi import AlignAndFocusPowder, ConvertUnits, Rebin, SaveNexus
 
 # Align and focus using calibration
 AlignAndFocusPowder(
     InputWorkspace=input,
     OutputWorkspace=output,
-    CalFileName='/SNS/POWGEN/shared/calibration/POWGEN_2024.cal',
+    CalFileName="/SNS/POWGEN/shared/calibration/POWGEN_2024.cal",
     Params=-0.0002,
     ResampleX=8192,
-    PreserveEvents=False
+    PreserveEvents=False,
 )
 
 # Convert to Q
-ConvertUnits(
-    InputWorkspace=output,
-    OutputWorkspace=output,
-    Target='MomentumTransfer'
-)
+ConvertUnits(InputWorkspace=output, OutputWorkspace=output, Target="MomentumTransfer")
 
 # Save reduced chunk
 run_info = output.getRun()
-run_number = run_info.getProperty('run_number').value
-SaveNexus(
-    InputWorkspace=output,
-    Filename=f'/SNS/POWGEN/IPTS/shared/live_reduced/POWGEN_{run_number}_live.nxs'
-)
+run_number = run_info.getProperty("run_number").value
+SaveNexus(InputWorkspace=output, Filename=f"/SNS/POWGEN/IPTS/shared/live_reduced/POWGEN_{run_number}_live.nxs")
 ```
 
 **Post-processing:** `/SNS/POWGEN/shared/livereduce/reduce_POWGEN_live_post_proc.py`
 
 ```python
-from mantid.simpleapi import (
-    SaveAscii,
-    SaveNexus,
-    mtd
-)
+from mantid.simpleapi import SaveAscii, SaveNexus, mtd
 
 # Accumulated workspace is named based on config
-accum_ws = 'accumulation'
+accum_ws = "accumulation"
 
 if mtd.doesExist(accum_ws):
     # Save accumulated data
     run_info = mtd[accum_ws].getRun()
-    run_number = run_info.getProperty('run_number').value
+    run_number = run_info.getProperty("run_number").value
 
     # Save as NeXus
     SaveNexus(
-        InputWorkspace=accum_ws,
-        Filename=f'/SNS/POWGEN/IPTS/shared/live_accumulated/POWGEN_{run_number}_accum.nxs'
+        InputWorkspace=accum_ws, Filename=f"/SNS/POWGEN/IPTS/shared/live_accumulated/POWGEN_{run_number}_accum.nxs"
     )
 
     # Also save ASCII for quick viewing
     SaveAscii(
         InputWorkspace=accum_ws,
-        Filename=f'/SNS/POWGEN/IPTS/shared/live_accumulated/POWGEN_{run_number}_accum.dat',
-        Separator='Space'
+        Filename=f"/SNS/POWGEN/IPTS/shared/live_accumulated/POWGEN_{run_number}_accum.dat",
+        Separator="Space",
     )
 ```
 
@@ -205,67 +188,40 @@ sudo systemctl enable livereduce
 **Processing script:** `/SNS/WISH/shared/livereduce/reduce_WISH_live_proc.py`
 
 ```python
-from mantid.simpleapi import (
-    CompressEvents,
-    FilterByXValue,
-    SumSpectra
-)
+from mantid.simpleapi import CompressEvents, FilterByXValue, SumSpectra
 
 # Compress events to manage memory
-CompressEvents(
-    InputWorkspace=input,
-    OutputWorkspace=output,
-    Tolerance=0.01
-)
+CompressEvents(InputWorkspace=input, OutputWorkspace=output, Tolerance=0.01)
 
 # Remove invalid TOF
-FilterByXValue(
-    InputWorkspace=output,
-    OutputWorkspace=output,
-    XMin=1000,
-    XMax=20000
-)
+FilterByXValue(InputWorkspace=output, OutputWorkspace=output, XMin=1000, XMax=20000)
 
 # Create summed spectrum for quick viewing
-SumSpectra(
-    InputWorkspace=output,
-    OutputWorkspace='wish_sum',
-    RemoveSpecialValues=True
-)
+SumSpectra(InputWorkspace=output, OutputWorkspace="wish_sum", RemoveSpecialValues=True)
 ```
 
 **Handle periods in post-processing:**
 
 ```python
-from mantid.simpleapi import (
-    GroupWorkspaces,
-    mtd,
-    SaveNexusProcessed
-)
+from mantid.simpleapi import GroupWorkspaces, mtd, SaveNexusProcessed
 
 # Accumulated workspace contains all periods
-accum = 'accumulation'
+accum = "accumulation"
 
 if mtd.doesExist(accum):
     ws = mtd[accum]
 
     # Check if multi-period
-    if hasattr(ws, 'getNumberOfEntries'):
+    if hasattr(ws, "getNumberOfEntries"):
         # WorkspaceGroup with one workspace per period
         period_names = ws.getNames()
         print(f"Processing {len(period_names)} periods: {period_names}")
 
         # Save group
-        SaveNexusProcessed(
-            InputWorkspace=accum,
-            Filename='/SNS/WISH/shared/live_data/WISH_live_multiperiod.nxs'
-        )
+        SaveNexusProcessed(InputWorkspace=accum, Filename="/SNS/WISH/shared/live_data/WISH_live_multiperiod.nxs")
     else:
         # Single period
-        SaveNexusProcessed(
-            InputWorkspace=accum,
-            Filename='/SNS/WISH/shared/live_data/WISH_live_single.nxs'
-        )
+        SaveNexusProcessed(InputWorkspace=accum, Filename="/SNS/WISH/shared/live_data/WISH_live_single.nxs")
 ```
 
 ### Memory-Constrained System
@@ -287,31 +243,22 @@ For systems with limited RAM, use aggressive memory management:
 **Processing script with memory optimization:**
 
 ```python
-from mantid.simpleapi import (
-    AlignAndFocusPowder,
-    CompressEvents,
-    DeleteWorkspace,
-    mtd
-)
+from mantid.simpleapi import AlignAndFocusPowder, CompressEvents, DeleteWorkspace, mtd
 
 # Immediately compress to reduce memory
-CompressEvents(
-    InputWorkspace=input,
-    OutputWorkspace='compressed',
-    Tolerance=0.05
-)
+CompressEvents(InputWorkspace=input, OutputWorkspace="compressed", Tolerance=0.05)
 
 # Focus and convert to histogram
 AlignAndFocusPowder(
-    InputWorkspace='compressed',
+    InputWorkspace="compressed",
     OutputWorkspace=output,
-    CalFileName='/SNS/NOM/shared/cal/NOMAD.cal',
+    CalFileName="/SNS/NOM/shared/cal/NOMAD.cal",
     Params=-0.0004,
-    PreserveEvents=False  # Convert to histogram
+    PreserveEvents=False,  # Convert to histogram
 )
 
 # Clean up intermediate workspace
-DeleteWorkspace('compressed')
+DeleteWorkspace("compressed")
 
 # Don't create additional workspaces
 # Everything stays in 'output'
@@ -333,30 +280,15 @@ Process only specific detector banks to reduce memory:
 **Processing script:**
 
 ```python
-from mantid.simpleapi import (
-    ConvertUnits,
-    Rebin,
-    SumSpectra
-)
+from mantid.simpleapi import ConvertUnits, Rebin, SumSpectra
 
 # Input already contains only requested spectra
 print(f"Processing {input.getNumberHistograms()} spectra")
 
 # Standard reduction
-ConvertUnits(
-    InputWorkspace=input,
-    OutputWorkspace=output,
-    Target='DeltaE',
-    EMode='Direct',
-    EFixed=50.0
-)
+ConvertUnits(InputWorkspace=input, OutputWorkspace=output, Target="DeltaE", EMode="Direct", EFixed=50.0)
 
-Rebin(
-    InputWorkspace=output,
-    OutputWorkspace=output,
-    Params='-20,0.5,50',
-    PreserveEvents=False
-)
+Rebin(InputWorkspace=output, OutputWorkspace=output, Params="-20,0.5,50", PreserveEvents=False)
 ```
 
 ## Integration with Automated Workflows
@@ -369,23 +301,19 @@ Post-processing can trigger analysis pipelines:
 import subprocess
 from mantid.simpleapi import SaveNexus, mtd
 
-accum = 'accumulation'
+accum = "accumulation"
 
 if mtd.doesExist(accum):
     ws = mtd[accum]
-    run_number = ws.getRun().getProperty('run_number').value
+    run_number = ws.getRun().getProperty("run_number").value
 
     # Save data
-    output_file = f'/SNS/INSTR/shared/live/run_{run_number}.nxs'
+    output_file = f"/SNS/INSTR/shared/live/run_{run_number}.nxs"
     SaveNexus(InputWorkspace=accum, Filename=output_file)
 
     # Trigger external analysis
     try:
-        subprocess.run(
-            ['/SNS/INSTR/shared/scripts/analyze_live.sh', output_file],
-            timeout=30,
-            check=True
-        )
+        subprocess.run(["/SNS/INSTR/shared/scripts/analyze_live.sh", output_file], timeout=30, check=True)
     except subprocess.TimeoutExpired:
         print(f"Analysis script timed out for {output_file}")
     except subprocess.CalledProcessError as e:
@@ -401,15 +329,15 @@ import json
 import requests
 from mantid.simpleapi import mtd
 
-accum = 'accumulation'
+accum = "accumulation"
 
 if mtd.doesExist(accum):
     ws = mtd[accum]
 
     # Extract key metrics
     run_info = ws.getRun()
-    run_number = run_info.getProperty('run_number').value
-    proton_charge = run_info.getProperty('gd_prtn_chrg').value
+    run_number = run_info.getProperty("run_number").value
+    proton_charge = run_info.getProperty("gd_prtn_chrg").value
 
     # Get intensity in region of interest
     y_data = ws.readY(0)
@@ -417,19 +345,15 @@ if mtd.doesExist(accum):
 
     # Publish to dashboard
     payload = {
-        'run': run_number,
-        'instrument': 'POWGEN',
-        'proton_charge': proton_charge,
-        'total_counts': int(total_counts),
-        'timestamp': run_info.getProperty('start_time').value
+        "run": run_number,
+        "instrument": "POWGEN",
+        "proton_charge": proton_charge,
+        "total_counts": int(total_counts),
+        "timestamp": run_info.getProperty("start_time").value,
     }
 
     try:
-        response = requests.post(
-            'http://dashboard.facility.gov/api/live_data',
-            json=payload,
-            timeout=5
-        )
+        response = requests.post("http://dashboard.facility.gov/api/live_data", json=payload, timeout=5)
         response.raise_for_status()
     except requests.RequestException as e:
         print(f"Failed to publish to dashboard: {e}")
@@ -444,7 +368,7 @@ import smtplib
 from email.message import EmailMessage
 from mantid.simpleapi import mtd
 
-accum = 'accumulation'
+accum = "accumulation"
 
 if mtd.doesExist(accum):
     ws = mtd[accum]
@@ -457,11 +381,11 @@ if mtd.doesExist(accum):
     if peak_intensity > threshold:
         # Send alert
         msg = EmailMessage()
-        msg['Subject'] = 'Live Reduction Alert: Strong Peak Detected'
-        msg['From'] = 'livereduce@facility.gov'
-        msg['To'] = 'scientist@facility.gov'
+        msg["Subject"] = "Live Reduction Alert: Strong Peak Detected"
+        msg["From"] = "livereduce@facility.gov"
+        msg["To"] = "scientist@facility.gov"
 
-        run_number = ws.getRun().getProperty('run_number').value
+        run_number = ws.getRun().getProperty("run_number").value
         msg.set_content(f"""
 A strong peak (intensity {peak_intensity:.0f}) was detected in run {run_number}.
 
@@ -471,7 +395,7 @@ View live data at: http://dashboard.facility.gov/run/{run_number}
         """)
 
         try:
-            with smtplib.SMTP('smtp.facility.gov') as smtp:
+            with smtplib.SMTP("smtp.facility.gov") as smtp:
                 smtp.send_message(msg)
         except Exception as e:
             print(f"Failed to send email: {e}")
@@ -487,7 +411,7 @@ Enhance scripts with debugging information:
 import logging
 from mantid.simpleapi import mtd
 
-logger = logging.getLogger('Mantid')
+logger = logging.getLogger("Mantid")
 
 logger.info("=== Processing Script Started ===")
 logger.info(f"Input workspace: {input.name()}")
@@ -496,8 +420,8 @@ logger.info(f"Number of bins: {input.blocksize()}")
 
 # Check run properties
 run_info = input.getRun()
-if run_info.hasProperty('run_number'):
-    run_number = run_info.getProperty('run_number').value
+if run_info.hasProperty("run_number"):
+    run_number = run_info.getProperty("run_number").value
     logger.info(f"Run number: {run_number}")
 
 # Your processing here
@@ -514,6 +438,7 @@ Validate workspace state before operations:
 ```python
 from mantid.simpleapi import mtd
 
+
 def validate_workspace(ws_name):
     """Check if workspace is valid for processing"""
     if not mtd.doesExist(ws_name):
@@ -529,9 +454,10 @@ def validate_workspace(ws_name):
 
     return ws
 
+
 # Use in scripts
 try:
-    validate_workspace('input')
+    validate_workspace("input")
     # Processing continues
 except ValueError as e:
     print(f"Validation failed: {e}")
