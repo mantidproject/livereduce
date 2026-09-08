@@ -45,12 +45,7 @@ The processing script receives each chunk and processes it.
 
 ```python
 # File: reduce_POWGEN_live_proc.py
-from mantid.simpleapi import (
-    Rebin,
-    SumSpectra,
-    ConvertUnits,
-    DiffractionFocussing
-)
+from mantid.simpleapi import Rebin, SumSpectra, ConvertUnits, DiffractionFocussing
 
 # Available variables:
 # - input: The incoming data chunk (workspace)
@@ -61,8 +56,9 @@ from mantid.simpleapi import (
 
 # Example: Basic powder diffraction processing
 ConvertUnits(InputWorkspace=input, OutputWorkspace=output, Target="dSpacing")
-DiffractionFocussing(InputWorkspace=output, OutputWorkspace=output,
-                      GroupingFileName="/SNS/POWGEN/shared/cal_2024_01.cal")
+DiffractionFocussing(
+    InputWorkspace=output, OutputWorkspace=output, GroupingFileName="/SNS/POWGEN/shared/cal_2024_01.cal"
+)
 Rebin(InputWorkspace=output, OutputWorkspace=output, Params="0.5,-0.001,2.5")
 ```
 
@@ -89,11 +85,11 @@ Rebin(InputWorkspace=output, OutputWorkspace=output, Params="0.5,-0.001,2.5")
 **Anti-patterns**:
 ```python
 # DON'T: Define variables that don't exist
-InputWorkspace="input_ws"  # This variable doesn't exist!
+InputWorkspace = "input_ws"  # This variable doesn't exist!
 
 # DO: Use the provided variables
-InputWorkspace=input
-OutputWorkspace=output
+InputWorkspace = input
+OutputWorkspace = output
 
 # DON'T: File I/O in processing
 SaveNexus(...)  # Too slow!
@@ -116,12 +112,7 @@ The post-processing script processes accumulated data.
 ```python
 # File: reduce_POWGEN_live_post_proc.py
 import os
-from mantid.simpleapi import (
-    SaveNexus,
-    SaveAscii,
-    Integration,
-    DeleteWorkspace
-)
+from mantid.simpleapi import SaveNexus, SaveAscii, Integration, DeleteWorkspace
 
 # Available workspaces:
 # - accumulation: All accumulated data
@@ -136,13 +127,11 @@ output_dir = "/SNS/POWGEN/shared/livereduce"
 os.makedirs(output_dir, exist_ok=True)
 
 # Save data files
-SaveNexus(InputWorkspace="accumulation",
-          Filename=f"{output_dir}/POWGEN_{run_number}_live.nxs")
+SaveNexus(InputWorkspace="accumulation", Filename=f"{output_dir}/POWGEN_{run_number}_live.nxs")
 
 # Create a summary workspace
 integrated = Integration(InputWorkspace="accumulation")
-SaveAscii(InputWorkspace=integrated,
-          Filename=f"{output_dir}/POWGEN_{run_number}_integrated.txt")
+SaveAscii(InputWorkspace=integrated, Filename=f"{output_dir}/POWGEN_{run_number}_integrated.txt")
 
 # Clean up temporary workspaces
 DeleteWorkspace(integrated)
@@ -244,12 +233,10 @@ Event data can consume significant memory.
 
 ```python
 # This keeps ALL events in memory (grows unbounded!):
-Rebin(InputWorkspace=input, OutputWorkspace=output,
-      Params="1000,100,20000", PreserveEvents=True)
+Rebin(InputWorkspace=input, OutputWorkspace=output, Params="1000,100,20000", PreserveEvents=True)
 
 # This converts to histogram (constant memory, but may be large):
-Rebin(InputWorkspace=input, OutputWorkspace=output,
-      Params="1000,100,20000", PreserveEvents=False)  # Recommended
+Rebin(InputWorkspace=input, OutputWorkspace=output, Params="1000,100,20000", PreserveEvents=False)  # Recommended
 ```
 
 ### Configuration
@@ -289,8 +276,7 @@ htop -p $(pgrep -f livereduce.py)
 from mantid.simpleapi import Rebin
 
 # Rebin to common TOF range
-Rebin(InputWorkspace=input, OutputWorkspace=output,
-      Params="1000,100,20000", PreserveEvents=False)
+Rebin(InputWorkspace=input, OutputWorkspace=output, Params="1000,100,20000", PreserveEvents=False)
 ```
 
 ### Spectrum Summation (Processing)
@@ -312,12 +298,10 @@ output_dir = "/SNS/INSTR/shared/livereduce"
 os.makedirs(output_dir, exist_ok=True)
 
 # Save NeXus file
-SaveNexus(InputWorkspace="accumulation",
-          Filename=f"{output_dir}/live_data.nxs")
+SaveNexus(InputWorkspace="accumulation", Filename=f"{output_dir}/live_data.nxs")
 
 # Save ASCII for quick viewing
-SaveAscii(InputWorkspace="accumulation",
-          Filename=f"{output_dir}/live_data.txt")
+SaveAscii(InputWorkspace="accumulation", Filename=f"{output_dir}/live_data.txt")
 ```
 
 ### Instrument-Specific Example (REF_M)
@@ -327,12 +311,10 @@ SaveAscii(InputWorkspace="accumulation",
 from mantid.simpleapi import ConvertUnits, Rebin
 
 # Convert to wavelength
-ConvertUnits(InputWorkspace=input, OutputWorkspace=output,
-             Target="Wavelength")
+ConvertUnits(InputWorkspace=input, OutputWorkspace=output, Target="Wavelength")
 
 # Rebin in wavelength
-Rebin(InputWorkspace=output, OutputWorkspace=output,
-      Params="2.5,0.1,15", PreserveEvents=False)
+Rebin(InputWorkspace=output, OutputWorkspace=output, Params="2.5,0.1,15", PreserveEvents=False)
 ```
 
 ```python
@@ -386,6 +368,7 @@ os.makedirs(output_dir, exist_ok=True)
 
 # Create timestamped subdirectories
 from datetime import datetime
+
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 run_dir = os.path.join(output_dir, f"run_{run_number}_{timestamp}")
 os.makedirs(run_dir, exist_ok=True)

@@ -215,11 +215,11 @@ Or in config:
 **Common Error 1: Undefined variable**
 ```python
 # Wrong - 'input' and 'output' are pre-defined
-InputWorkspace="input_ws"  # Variable doesn't exist!
+InputWorkspace = "input_ws"  # Variable doesn't exist!
 
 # Correct
-InputWorkspace=input
-OutputWorkspace=output
+InputWorkspace = input
+OutputWorkspace = output
 ```
 
 **Common Error 2: Workspace doesn't exist**
@@ -242,6 +242,7 @@ python3 -c "from mantid.simpleapi import help; help('Rebin')"
 ```python
 # Ensure directory exists and is writable
 import os
+
 output_dir = "/SNS/INSTR/shared/livereduce"
 os.makedirs(output_dir, exist_ok=True)
 ```

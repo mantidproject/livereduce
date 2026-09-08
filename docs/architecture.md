@@ -139,8 +139,7 @@ from mantid.simpleapi import Rebin, SumSpectra
 # Sum all spectra in the chunk
 SumSpectra(InputWorkspace=input, OutputWorkspace=output)
 # Rebin to coarser bins for faster plotting
-Rebin(InputWorkspace=output, OutputWorkspace=output,
-      Params="300,20,17000")
+Rebin(InputWorkspace=output, OutputWorkspace=output, Params="300,20,17000")
 ```
 
 ### Post-Processing Script (`reduce_<INSTRUMENT>_live_post_proc.py`)
@@ -173,10 +172,8 @@ from mantid.simpleapi import SaveAscii, SaveNexus
 
 # Save accumulated data to shared directory
 output_dir = "/SNS/INSTR/IPTS-12345/shared/livereduce"
-SaveNexus(InputWorkspace="accumulation",
-          Filename=f"{output_dir}/live_data.nxs")
-SaveAscii(InputWorkspace="accumulation",
-          Filename=f"{output_dir}/live_data.txt")
+SaveNexus(InputWorkspace="accumulation", Filename=f"{output_dir}/live_data.nxs")
+SaveAscii(InputWorkspace="accumulation", Filename=f"{output_dir}/live_data.txt")
 ```
 
 ## Best Practices
