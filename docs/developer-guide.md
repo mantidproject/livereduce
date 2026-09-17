@@ -452,7 +452,7 @@ pixi shell
 
 This installs:
 - Mantid framework
-- Python dependencies (pyinotify, psutil)
+- Python dependencies (psutil)
 - Development tools (pre-commit, hatchling)
 
 3. **Install pre-commit hooks:**
