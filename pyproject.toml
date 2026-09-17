@@ -32,7 +32,6 @@ backend = { name = "pixi-build-python", version = "0.1.*" }
 
 [tool.pixi.dependencies]
 mantid = "*"
-pyinotify = "*"
 psutil = "*"
 hatchling = "*"
 pre-commit = ">=4.2.0"
