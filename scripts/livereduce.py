@@ -192,6 +192,18 @@ class Config:
         self.mem_limit = psutil.virtual_memory().total * self.system_mem_limit_perc / 100
         self.proc_pid = psutil.Process(os.getpid())
 
+        # a limit below what the daemon already uses makes the memory checker restart live data
+        # on its first check, before the first chunk has finished, rather than protecting anything
+        if self.system_mem_limit_perc > 0:
+            mem_used = self.proc_pid.memory_info().rss
+            if mem_used > self.mem_limit:
+                self.logger.warning(
+                    f"Memory limit {self.mem_limit * CONVERSION_FACTOR_BYTES_TO_MB:.2f} MB "
+                    f"(system_mem_limit_perc={self.system_mem_limit_perc}) is already below the "
+                    f"current usage of {mem_used * CONVERSION_FACTOR_BYTES_TO_MB:.2f} MB - "
+                    "live data processing will be restarted immediately and repeatedly"
+                )
+
         # location of the scripts
         self.script_dir = json_doc.get("script_dir")
         if self.script_dir is None:
