@@ -1,5 +1,4 @@
 # Standard library imports
-import hashlib
 import json
 import logging
 import os
@@ -15,7 +14,6 @@ import psutil
 from mantid.kernel import InstrumentInfo
 from mantid.simpleapi import StartLiveData, mtd
 from mantid.utils.logging import log_to_python as mtd_log_to_python
-from packaging.version import parse as parse_version
 
 CONVERSION_FACTOR_BYTES_TO_MB = 1.0 / (1024 * 1024)
 
@@ -337,18 +335,6 @@ class Config:
 
 
 ####################
-def md5(filename):
-    if filename and os.path.exists(filename):
-        # starting in python 3.9 one can point out md5 is not used in security context
-        if parse_version(f"{sys.version_info.major}.{sys.version_info.minor}") < parse_version("3.9"):
-            md5sum = hashlib.md5(open(filename, "rb").read())  # noqa: S324
-        else:
-            md5sum = hashlib.md5(open(filename, "rb").read(), usedforsecurity=False)
-        return md5sum.hexdigest()
-    else:
-        return ""
-
-
 def memory_checker(config, livemanager):
     while True:
         mem_used = config.proc_pid.memory_info().rss
