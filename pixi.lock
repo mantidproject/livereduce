@@ -104,7 +104,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pthread-stubs-0.4-hb03c661_1003.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pycifrw-5.0.1-py312h4c3975b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pydantic-core-2.46.5-py312hc767a74_1.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/pyinotify-0.9.6-py312h7900ff3_1007.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/python-3.12.14-h8ab3286_0_cpython.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pyyaml-6.0.3-py312h8a5da7c_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/quasielasticbayes-0.3.0-py312hfc6b132_0.conda
@@ -162,7 +161,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/ply-3.11-pyhd8ed1ab_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pre-commit-4.6.2-pyha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/prettytable-3.18.0-pyhd8ed1ab_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/pyasyncore-1.0.5-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pycparser-3.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pydantic-2.13.5-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/python-discovery-1.6.0-pyhcf101f3_0.conda
@@ -1602,20 +1600,6 @@ packages:
   run_exports: {}
   size: 1877711
   timestamp: 1787928982283
-- conda: https://conda.anaconda.org/conda-forge/linux-64/pyinotify-0.9.6-py312h7900ff3_1007.conda
-  sha256: b8e19b62a88af764cc45c11597e5f3645217e3cef57313b6b0a6988f2413bbc1
-  md5: ae7cea95258a47ce59d63747016aabd5
-  depends:
-  - pyasyncore
-  - python >=3.12,<3.13.0a0
-  - python_abi 3.12.* *_cp312
-  license: MIT
-  license_family: MIT
-  purls:
-  - pkg:pypi/pyinotify?source=hash-mapping
-  run_exports: {}
-  size: 57413
-  timestamp: 1696851208846
 - conda: https://conda.anaconda.org/conda-forge/linux-64/python-3.12.14-h8ab3286_0_cpython.conda
   sha256: ceb9c724de53ee3560f121dbfcb00fe8acb22c08691158fce7b6c32425855626
   md5: e9dcdd23a1c68738eb3257d23d5f7285
@@ -2439,18 +2423,6 @@ packages:
   run_exports: {}
   size: 38907
   timestamp: 1782320930094
-- conda: https://conda.anaconda.org/conda-forge/noarch/pyasyncore-1.0.5-pyhd8ed1ab_0.conda
-  sha256: 66f0148c0c5d0386f08dbfde362b601b21594f986160d809f5929153f4faac2d
-  md5: b0e13d66b03385cabe8b7b3b24b607ca
-  depends:
-  - python >=3.12,<3.13
-  license: PSF-2.0
-  license_family: PSF
-  purls:
-  - pkg:pypi/pyasyncore?source=hash-mapping
-  run_exports: {}
-  size: 16568
-  timestamp: 1771524786300
 - conda: https://conda.anaconda.org/conda-forge/noarch/pycparser-3.0-pyhcf101f3_0.conda
   sha256: e27e0473fc6723311a0bd48b89b616fa1b996a2f7a2b555338cbbcfb9c640568
   md5: 9c5491066224083c41b6d5635ed7107b

@@ -46,7 +46,7 @@ sudo journalctl -u livereduce -f
 
 **Shows**:
 - Configuration loading
-- Script detection
+- Which processing scripts were loaded
 - Connection to DAS
 - Processing errors
 - Memory warnings
@@ -282,9 +282,19 @@ These are NOT problems:
 - Network issues causing disconnects
 - **Fix**: Check network, contact facility IT
 
-### Script Changes Not Detected
+### Script Changes Not Picked Up
 
 **Symptom**: Updated script but behavior unchanged
+
+**Most likely cause**: the daemon loads the processing scripts at startup and does not watch them
+for changes. Every edit needs a restart.
+
+**Solution**: Restart the service
+```bash
+sudo systemctl restart livereduce
+```
+
+If the behavior is still unchanged after a restart:
 
 **Check 1: File actually changed**
 ```bash
@@ -295,21 +305,15 @@ ls -l /SNS/INSTR/shared/livereduce/reduce_*
 md5sum /SNS/INSTR/shared/livereduce/reduce_*
 ```
 
-**Check 2: Daemon detected change**
+**Check 2: Daemon loaded the script you expect**
 ```bash
-# Look for restart message
-grep "changed - restarting" /var/log/SNS_applications/livereduce.log
+grep "ProcessingScriptFilename" /var/log/SNS_applications/livereduce.log
 ```
 
 **Check 3: Permissions**
 ```bash
 # Ensure snsdata can read
 sudo -u snsdata cat /SNS/INSTR/shared/livereduce/reduce_INSTR_live_proc.py
-```
-
-**Solution**: Force restart
-```bash
-sudo systemctl restart livereduce
 ```
 
 ## Debugging Techniques
@@ -360,20 +364,16 @@ tail -f livereduce.log
 
 ### Checking MD5 Sums
 
-Daemon detects script changes via MD5 checksums:
+Compare the deployed scripts against your local copies to confirm a file really changed:
 
 ```bash
-# See what daemon calculated
-grep "md5" /var/log/SNS_applications/livereduce.log
-
-# Calculate manually
 md5sum /SNS/INSTR/shared/livereduce/reduce_*
 ```
 
 **If scripts not updating**:
+- Restart the service - scripts are only loaded at startup
 - Verify file changed
 - Check permissions
-- Ensure inotify working
 
 ### Monitoring Memory
 
@@ -445,6 +445,7 @@ sudo systemctl disable livereduce
 
 **Restart when**:
 - Configuration file changed (required)
+- Processing or post-processing script changed (required)
 - Service shows "failed"
 - Making routine updates
 - Testing new scripts
@@ -453,7 +454,6 @@ sudo systemctl disable livereduce
 - Service "active" but not working
 - Repeated auto-restarts
 - Memory/disk issues suspected
-- New scripts just deployed (auto-restarts)
 
 ### Checking Processes
 

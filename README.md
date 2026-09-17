@@ -43,7 +43,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) and the [Developer Guide](docs/developer-
 
 ## Configuration
 
-The configuration is automatically read from `/etc/livereduce.conf`. A minimal configuration requires only the instrument name:
+The configuration is read at startup from `/etc/livereduce.conf`. A minimal configuration requires only the instrument name:
 
 ```json
 {
@@ -80,6 +80,13 @@ LiveReduce executes instrument-specific Python scripts:
 Example for NOMAD:
 - `/SNS/NOM/shared/livereduce/reduce_NOM_live_proc.py`
 - `/SNS/NOM/shared/livereduce/reduce_NOM_live_post_proc.py`
+
+These scripts, like `/etc/livereduce.conf`, are read when the daemon starts. The daemon does not
+watch them for changes, so restart the service after editing either:
+
+```bash
+sudo systemctl restart livereduce
+```
 
 See [Processing Scripts](docs/processing-scripts.md) for writing these scripts.
 

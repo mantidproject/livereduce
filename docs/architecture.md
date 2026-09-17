@@ -13,7 +13,7 @@ flowchart TD
     Mantid["Mantid StartLiveData / MonitorLiveData<br/>Orchestrates the processing and accumulation cycle"]
     ProcScript["Processing Script<br/>(proc.py)<br/>Runs on each chunk received"]
     PostScript["Post-Processing Script<br/>(post_proc.py)<br/>Runs on accumulated data at intervals"]
-    Daemon["livereduce Daemon<br/>Manages the entire workflow, monitors for script changes,<br/>watches memory usage, handles restarts"]
+    Daemon["livereduce Daemon<br/>Manages the entire workflow,<br/>watches memory usage, handles restarts"]
     Watchdog["livereduce_watchdog<br/>Monitors the daemon's log file and restarts it if unresponsive"]
 
     DAS --> Listener
@@ -53,7 +53,7 @@ flowchart TD
 - Systemd service wrapping the entire workflow
 - Provides automatic restart on errors
 - Monitors memory usage and is a systemd service
-- Detects script changes via inotify file watching
+- Must be restarted manually to pick up script or configuration changes
 
 **livereduce_watchdog**
 - Independent monitoring service

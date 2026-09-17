@@ -1,7 +1,7 @@
 [project]
 name = "livereduce"
 description = "Daemon for running live data reduction with systemd"
-version = "1.22"
+version = "1.23"
 requires-python = ">=3.9"
 license = { text = "MIT License" }
 authors = [{name="Pete Peterson",email="petersonpf@ornl.gov"}]
@@ -32,7 +32,6 @@ backend = { name = "pixi-build-python", version = "0.1.*" }
 
 [tool.pixi.dependencies]
 mantid = "*"
-pyinotify = "*"
 psutil = "*"
 hatchling = "*"
 pre-commit = ">=4.2.0"
