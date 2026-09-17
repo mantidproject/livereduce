@@ -60,45 +60,56 @@ class LiveDataManager:
 
     logger = logging.getLogger(LOG_NAME + ".LiveDataManager")
 
+    # serializes start/stop so the memory checker thread and the main thread cannot start and
+    # cancel algorithms at the same time. Reentrant because restart_and_clear holds it while
+    # calling stop and start
+    _lock = threading.RLock()
+
     def __init__(self, config):
         self.config = config
 
     def start(self):
-        mtd_log_to_python("information")
+        with self._lock:
+            mtd_log_to_python("information")
 
-        liveArgs = self.config.toStartLiveArgs()
-        self.logger.info("StartLiveData(" + json.dumps(liveArgs, sort_keys=True, indent=2) + ")")
-        try:
-            StartLiveData(**liveArgs)
-        except KeyboardInterrupt:
-            self.logger.info("interrupted StartLiveData")
-            self.stop()
-            sys.exit(-1)
+            liveArgs = self.config.toStartLiveArgs()
+            self.logger.info("StartLiveData(" + json.dumps(liveArgs, sort_keys=True, indent=2) + ")")
+            try:
+                StartLiveData(**liveArgs)
+            except KeyboardInterrupt:
+                self.logger.info("interrupted StartLiveData")
+                self.stop()
+                sys.exit(-1)
 
     @classmethod
     def stop(cls, timeout=30.0):
         """Determine if mantid is running and shuts it down"""
-        if "mantid" in locals() or "mantid" in globals():
-            cls.logger.info("stopping live data processing")
-            # cancel and poll rather than calling shutdown() directly. shutdown() holds the GIL
-            # while joining the mantid worker threads, and log_to_python means those threads need
-            # the GIL to emit their log messages - going straight to shutdown() deadlocks.
-            mantid.AlgorithmManager.cancelAll()
-            deadline = time.time() + timeout
-            while mantid.AlgorithmManager.runningInstancesOf("MonitorLiveData"):
-                if time.time() > deadline:
-                    raise RuntimeError("MonitorLiveData algorithm could not be stopped")
-                time.sleep(0.1)  # releases the GIL so the worker threads can finish
-            mantid.AlgorithmManager.shutdown()  # wait until all asynchronous-started algorithms complete
-        else:
-            cls.logger.info("mantid not initialized - nothing to cleanup")
+        with cls._lock:
+            if "mantid" in locals() or "mantid" in globals():
+                cls.logger.info("stopping live data processing")
+                # cancel and poll rather than calling shutdown() directly. shutdown() holds the
+                # GIL while joining the mantid worker threads, and log_to_python means those
+                # threads need the GIL to emit their log messages - going straight to shutdown()
+                # deadlocks.
+                mantid.AlgorithmManager.cancelAll()
+                deadline = time.time() + timeout
+                while mantid.AlgorithmManager.runningInstancesOf("MonitorLiveData"):
+                    if time.time() > deadline:
+                        raise RuntimeError("MonitorLiveData algorithm could not be stopped")
+                    time.sleep(0.1)  # releases the GIL so the worker threads can finish
+                mantid.AlgorithmManager.shutdown()  # wait until all async-started algorithms complete
+            else:
+                cls.logger.info("mantid not initialized - nothing to cleanup")
 
     def restart_and_clear(self):
-        self.logger.info("Restarting Live Data and clearing workspaces")
-        self.stop()
-        time.sleep(1.0)
-        mtd.clear()
-        self.start()
+        # held across the whole sequence so a concurrent stop cannot land between the
+        # stop and the start
+        with self._lock:
+            self.logger.info("Restarting Live Data and clearing workspaces")
+            self.stop()
+            time.sleep(1.0)
+            mtd.clear()
+            self.start()
 
 
 # ##################
