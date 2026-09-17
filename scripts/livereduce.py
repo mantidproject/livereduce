@@ -1,17 +1,17 @@
 # Standard library imports
+import hashlib
 import json
 import logging
 import os
+import queue
 import signal
 import sys
 import threading
 import time
-from hashlib import md5
 
 # Third-party imports
 import mantid  # for clearer error message
 import psutil
-import pyinotify
 from mantid.kernel import InstrumentInfo
 from mantid.simpleapi import StartLiveData, mtd
 from mantid.utils.logging import log_to_python as mtd_log_to_python
@@ -78,13 +78,20 @@ class LiveDataManager:
             sys.exit(-1)
 
     @classmethod
-    def stop(cls):
+    def stop(cls, timeout=30.0):
         """Determine if mantid is running and shuts it down"""
         if "mantid" in locals() or "mantid" in globals():
             cls.logger.info("stopping live data processing")
+            # cancel and poll rather than calling shutdown() directly. shutdown() holds the GIL
+            # while joining the mantid worker threads, and log_to_python means those threads need
+            # the GIL to emit their log messages - going straight to shutdown() deadlocks.
+            mantid.AlgorithmManager.cancelAll()
+            deadline = time.time() + timeout
+            while mantid.AlgorithmManager.runningInstancesOf("MonitorLiveData"):
+                if time.time() > deadline:
+                    raise RuntimeError("MonitorLiveData algorithm could not be stopped")
+                time.sleep(0.1)  # releases the GIL so the worker threads can finish
             mantid.AlgorithmManager.shutdown()  # wait until all asynchronous-started algorithms complete
-            if mantid.AlgorithmManager.runningInstancesOf("MonitorLiveData"):
-                raise RuntimeError("MonitorLiveData algorithm could not be stopped")
         else:
             cls.logger.info("mantid not initialized - nothing to cleanup")
 
@@ -104,21 +111,14 @@ class LiveDataManager:
 # signal.SIGKILL - doesn't want to register
 sig_name = {signal.SIGINT: "SIGINT", signal.SIGQUIT: "SIGQUIT", signal.SIGTERM: "SIGTERM"}
 
+# the signal handler hands the signal to the main loop, which does the actual shutdown.
+# SimpleQueue.put is safe to call from a signal handler
+shutdown_requested = queue.SimpleQueue()
+
 
 def sigterm_handler(sig_received, frame):  # noqa: ARG001
-    msg = f"received {sig_name[sig_received]}({sig_received})"
-    # logger.debug( "SIGTERM received")
-    logger.info(msg)
-    try:
-        LiveDataManager.stop()  # may raise if algorithm MonitorLiveData does not finish
-    except RuntimeError as ex:
-        logger.error(ex)
-    if sig_received == signal.SIGINT:
-        raise KeyboardInterrupt(msg)
-    elif sig_received == signal.SIGTERM:
-        sys.exit(0)
-    else:
-        raise RuntimeError(msg)
+    """Record the signal and let the main loop shut things down"""
+    shutdown_requested.put(sig_received)
 
 
 for signal_event in sig_name.keys():
@@ -337,60 +337,16 @@ class Config:
 
 
 ####################
-class EventHandler(pyinotify.ProcessEvent):
-    logger = logging.getLogger(LOG_NAME + ".EventHandler")
-
-    def __init__(self, config, livemanager):
-        # files that we actually care about
-        self.configfile = config.filename
-        self.scriptdir = config.script_dir
-
-        # key=filename
-        # value=md5sum of contents to track if file actually changed
-        self.scriptfiles = {
-            config.procScript: self._md5(config.procScript),
-            config.postProcScript: self._md5(config.postProcScript),
-        }
-
-        # thing controlling the actual work
-        self.livemanager = livemanager
-
-    def _md5(self, filename):
-        if filename and os.path.exists(filename):
-            # starting in python 3.9 one can point out md5 is not used in security context
-            if parse_version(f"{sys.version_info.major}.{sys.version_info.minor}") < parse_version("3.9"):
-                md5sum = md5(open(filename, "rb").read())  # noqa: S324
-            else:
-                md5sum = md5(open(filename, "rb").read(), usedforsecurity=False)
-            return md5sum.hexdigest()
+def md5(filename):
+    if filename and os.path.exists(filename):
+        # starting in python 3.9 one can point out md5 is not used in security context
+        if parse_version(f"{sys.version_info.major}.{sys.version_info.minor}") < parse_version("3.9"):
+            md5sum = hashlib.md5(open(filename, "rb").read())  # noqa: S324
         else:
-            return ""
-
-    def filestowatch(self):
-        if self.configfile:
-            return [self.scriptdir, self.configfile]
-        else:
-            return self.scriptdir
-
-    def process_default(self, event):
-        # changing the config file means just restart
-        if event.pathname == self.configfile:
-            self.logger.warning("Modifying configuration file is not supported" + "- shutting down")
-            self.livemanager.stop()
-            raise KeyboardInterrupt("stop inotify")
-
-        # changing the (post) processing script means restart LiveDataManager
-        # with new scripts
-        if event.pathname in self.scriptfiles.keys():
-            newmd5 = self._md5(event.pathname)
-            if newmd5 == self.scriptfiles[event.pathname]:
-                self.logger.info(f'Processing script "{event.pathname}" has not changed md5sum - continuing')
-            else:
-                # update the md5 sum associated with the file
-                self.scriptfiles[event.pathname] = newmd5
-                # restart the service
-                self.logger.info(f'Processing script "{event.pathname}" changed - restarting "StartLiveData"')
-                self.livemanager.restart_and_clear()
+            md5sum = hashlib.md5(open(filename, "rb").read(), usedforsecurity=False)
+        return md5sum.hexdigest()
+    else:
+        return ""
 
 
 def memory_checker(config, livemanager):
@@ -416,17 +372,8 @@ else:
 config = Config(config)
 logger.info("Configuration options: " + config.toJson(sort_keys=True, indent=2))
 
-# for passing into the eventhandler for inotify
+# thing controlling the actual work
 liveDataMgr = LiveDataManager(config)
-
-handler = EventHandler(config, liveDataMgr)
-wm = pyinotify.WatchManager()
-notifier = pyinotify.Notifier(wm, handler)
-
-# watched events
-mask = pyinotify.IN_DELETE | pyinotify.IN_MODIFY | pyinotify.IN_CREATE
-logger.info(f"WATCHING:{handler.filestowatch()}")
-wm.add_watch(handler.filestowatch(), mask)
 
 # start up the live data
 liveDataMgr.start()
@@ -436,9 +383,16 @@ if config.system_mem_limit_perc > 0:
     memory_thread = threading.Thread(target=memory_checker, args=(config, liveDataMgr), daemon=True)
     memory_thread.start()
 
-# inotify will keep the program running
-notifier.loop()
+# keep the program running until a signal asks us to stop
+signal_received = shutdown_requested.get()
+logger.info(f"received {sig_name[signal_received]}({signal_received})")
 
-# cleanup in the off chance that the script gets here
-liveDataMgr.stop()
+# cleanup - done here rather than in the signal handler so mantid can shut down cleanly
+try:
+    liveDataMgr.stop()  # may raise if algorithm MonitorLiveData does not finish
+except RuntimeError as ex:
+    logger.error(ex)
+
+if signal_received == signal.SIGQUIT:
+    raise RuntimeError(f"received {sig_name[signal_received]}({signal_received})")
 sys.exit(0)
