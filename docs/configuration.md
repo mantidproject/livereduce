@@ -379,13 +379,16 @@ If valid, prints formatted JSON. If invalid, shows error.
 
 ### Configuration Reload
 
-Modifying `/etc/livereduce.conf` causes the service to exit. Systemd automatically restarts it with new configuration:
+The configuration file is read only at startup. Editing it has no effect until the service is
+restarted manually:
 
 ```bash
 # Edit config
 sudoedit /etc/livereduce.conf
 
-# Service will restart automatically
+# Restart to apply the new configuration
+sudo systemctl restart livereduce
+
 # Monitor logs
 tail -f /var/log/SNS_applications/livereduce.log
 ```

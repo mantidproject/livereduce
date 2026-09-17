@@ -403,15 +403,17 @@ exec(open('reduce_INSTR_live_proc.py').read())
 
 ### Script Not Updating
 
+Scripts are loaded at startup only, so the daemon must be restarted after every edit.
+
 ```bash
+# Restart to load the edited script
+sudo systemctl restart livereduce
+
 # Check if file actually changed
 md5sum /SNS/INSTR/shared/livereduce/reduce_*
 
-# Check what daemon sees
-grep "md5" /var/log/SNS_applications/livereduce.log
-
-# Force restart
-sudo systemctl restart livereduce
+# Check which script the daemon loaded
+grep "ProcessingScriptFilename" /var/log/SNS_applications/livereduce.log
 ```
 
 ## Best Practices
@@ -436,6 +438,7 @@ sudo systemctl restart livereduce
 ### Deployment
 - Test locally before production
 - Deploy during low-activity periods
+- Restart the daemon so the new script is loaded
 - Monitor logs after deployment
 - Keep backups of working versions
 

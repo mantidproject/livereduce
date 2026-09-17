@@ -177,7 +177,8 @@ sudo firewall-cmd --reload
 
 ### Updating Processing Scripts
 
-The daemon automatically detects script changes via inotify:
+The daemon loads the processing scripts at startup and does not watch them for changes, so it
+must be restarted for an edit to take effect:
 
 **1. Test scripts locally** (see [Processing Scripts](processing-scripts.md))
 
@@ -187,19 +188,21 @@ scp reduce_INSTR_live_proc.py snsdata@beamline-server:/SNS/INSTR/shared/liveredu
 scp reduce_INSTR_live_post_proc.py snsdata@beamline-server:/SNS/INSTR/shared/livereduce/
 ```
 
-**3. Automatic detection**:
-The daemon uses inotify to watch for file changes:
-- Script modified (md5sum changed): Restarts processing automatically
-- Script deleted: Restarts without that script
-- Script created: Restarts with new script
+**3. Restart the daemon**:
+Adding, modifying or deleting a script has no effect until the service is restarted:
+```bash
+sudo systemctl restart livereduce
+```
 
 **4. Verify deployment**:
 ```bash
-# Check the log for restart message
+# Check the service came back up
+systemctl status livereduce
 sudo journalctl -u livereduce -n 50
 
-# Look for:
-# "Processing script "/path/to/script" changed - restarting StartLiveData"
+# Look for the scripts the daemon loaded:
+# "Using ProcessingScriptFilename '/path/to/script'"
+# "Using PostProcessingScriptFilename '/path/to/script'"
 ```
 
 **5. Monitor for errors**:
@@ -209,14 +212,17 @@ tail -f /var/log/SNS_applications/livereduce.log
 
 ### Updating Configuration
 
-**Note**: Modifying `/etc/livereduce.conf` causes the service to exit. Systemd will restart it with the new configuration after a short delay.
+**Note**: `/etc/livereduce.conf` is read only at startup. Editing it has no effect on a running
+daemon, which must be restarted manually to apply the new configuration.
 
 ```bash
 # 1. Edit configuration
 sudo vim /etc/livereduce.conf
 
-# 2. Service will automatically restart
-# Monitor logs to verify
+# 2. Restart to apply it
+sudo systemctl restart livereduce
+
+# 3. Monitor logs to verify
 tail -f /var/log/SNS_applications/livereduce.log
 ```
 
