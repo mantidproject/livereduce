@@ -42,6 +42,17 @@ Requires:  python-%{srcname} = %{version}-%{release}
 %description watchdog
 Daemon that monitors the livereduce log file and restarts service livereduce if necessary
 
+%package filewatch
+Summary: File watcher for restarting livereduce daemon on configuration/script changes
+# may need to tweak the main package name as macros change
+Requires:  python-%{srcname} = %{version}-%{release}
+Requires:  inotify-tools
+
+%description filewatch
+Daemon that watches /etc/livereduce.conf and the processing/post-processing scripts, and
+restarts service livereduce whenever any of them are created, modified, or deleted. livereduce
+itself only reads these files at startup (see "Remove pyinotify" mantidproject/livereduce#74).
+
 %prep
 %setup -q -n %{srcname}-%{version}
 
@@ -61,6 +72,9 @@ Daemon that monitors the livereduce log file and restarts service livereduce if 
 %{__install} -m 644 livereduce_watchdog.service %{buildroot}%{_unitdir}/
 %{__mkdir} -p %{buildroot}%{_sysconfdir}/polkit-1/rules.d/
 %{__install} -m 644 50-snsdata-livereduce.rules %{buildroot}%{_sysconfdir}/polkit-1/rules.d/
+# filewatch service
+%{__install} -m 755 scripts/livereduce_filewatch.sh %{buildroot}%{_bindir}/
+%{__install} -m 644 livereduce_filewatch.service %{buildroot}%{_unitdir}/
 
 %check
 # no test step
@@ -81,6 +95,9 @@ Daemon that monitors the livereduce log file and restarts service livereduce if 
 %post watchdog
 %systemd_post livereduce_watchdog.service
 
+%post filewatch
+%systemd_post livereduce_filewatch.service
+
 %preun
 %systemd_preun livereduce.service
 %{__rm} -f /var/log/SNS_applications/livereduce.log*
@@ -89,11 +106,18 @@ Daemon that monitors the livereduce log file and restarts service livereduce if 
 %systemd_preun livereduce_watchdog.service
 %{__rm} -f /var/log/SNS_applications/livereduce_watchdog.log*
 
+%preun filewatch
+%systemd_preun livereduce_filewatch.service
+%{__rm} -f /var/log/SNS_applications/livereduce_filewatch.log*
+
 %postun
 %systemd_postun_with_restart livereduce.service
 
 %postun watchdog
 %systemd_postun_with_restart livereduce_watchdog.service
+
+%postun filewatch
+%systemd_postun_with_restart livereduce_filewatch.service
 
 %files
 %doc README.md
@@ -105,3 +129,7 @@ Daemon that monitors the livereduce log file and restarts service livereduce if 
 %{_bindir}/livereduce_watchdog.sh
 %{_unitdir}/livereduce_watchdog.service
 %config(noreplace) %{_sysconfdir}/polkit-1/rules.d/50-snsdata-livereduce.rules
+
+%files filewatch
+%{_bindir}/livereduce_filewatch.sh
+%{_unitdir}/livereduce_filewatch.service
