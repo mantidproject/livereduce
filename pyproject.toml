@@ -42,6 +42,7 @@ livereduce = { path = ".", editable = true }
 
 [tool.pixi.feature.test.dependencies]
 bats-core = "*"
+inotify-tools = ">=3.20.2,<4"
 
 [tool.pixi.tasks]
 build = "hatchling build -t sdist"
@@ -65,8 +66,10 @@ docker run --rm livereduce-rpm:local bash -ec '
   sudo rpm -ivh --nodeps $RPM_DIR/*.noarch.rpm
   test -f /usr/bin/livereduce.sh
   test -f /usr/bin/livereduce_watchdog.sh
+  test -f /usr/bin/livereduce_filewatch.sh
   test -f /usr/lib/systemd/system/livereduce.service
   test -f /usr/lib/systemd/system/livereduce_watchdog.service
+  test -f /usr/lib/systemd/system/livereduce_filewatch.service
   test -f /etc/polkit-1/rules.d/50-snsdata-livereduce.rules
   test -d /var/log/SNS_applications
   test "$(stat -c %U /var/log/SNS_applications)" = snsdata
@@ -75,6 +78,8 @@ docker run --rm livereduce-rpm:local bash -ec '
   sudo systemctl --dry-run disable livereduce.service
   sudo systemctl --dry-run enable  livereduce_watchdog.service
   sudo systemctl --dry-run disable livereduce_watchdog.service
+  sudo systemctl --dry-run enable  livereduce_filewatch.service
+  sudo systemctl --dry-run disable livereduce_filewatch.service
 '
 """
 depends-on = ["rpm-build"]
