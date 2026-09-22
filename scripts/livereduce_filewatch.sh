@@ -1,7 +1,7 @@
 #!/bin/bash
 echo "ARGS $*"
 
-# determine the configuration file
+# Determine the configuration file
 if [ $# -ge 1 ]; then
     CONFIG_FILE="${1}"
 else
@@ -23,11 +23,17 @@ FILEWATCH_LOG="/var/log/SNS_applications/livereduce_filewatch.log"
 # service exists to notice changes on its behalf and restart it.
 INSTRUMENT="$(/bin/jq --raw-output '.instrument // empty' "${CONFIG_FILE}")"
 SCRIPT_DIR="$(/bin/jq --raw-output '.script_dir // empty' "${CONFIG_FILE}")"
+
+# 'instrument' is required even when 'script_dir' is given, since the proc/post_proc
+# filenames below are derived from it too. livereduce.py can fall back to Mantid's
+# configured default instrument when 'instrument' is omitted, but this script has no
+# access to that without depending on Mantid itself, so it requires the value directly.
+if [ -z "${INSTRUMENT}" ]; then
+    echo "ERROR: '${CONFIG_FILE}' has no 'instrument' set - cannot determine which processing scripts to watch." >&2
+    exit 1
+fi
+
 if [ -z "${SCRIPT_DIR}" ]; then
-    if [ -z "${INSTRUMENT}" ]; then
-        echo "ERROR: '${CONFIG_FILE}' has neither 'script_dir' nor 'instrument' set - cannot determine which directory to watch." >&2
-        exit 1
-    fi
     # must match the default computed by Config.__init__ in scripts/livereduce.py
     SCRIPT_DIR="/SNS/${INSTRUMENT}/shared/livereduce"
 fi
