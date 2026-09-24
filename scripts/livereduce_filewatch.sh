@@ -21,6 +21,11 @@ fi
 ##############
 
 FILEWATCH_LOG="/var/log/SNS_applications/livereduce_filewatch.log"
+# fail at startup, as livereduce.py does for its own log; a write failing later only warns (see signal_livereduce)
+if ! { : >>"${FILEWATCH_LOG}"; } 2>/dev/null; then
+    echo "ERROR: Cannot write to log file '${FILEWATCH_LOG}'." >&2
+    exit 1
+fi
 
 # matches only the python process running livereduce.py - not the livereduce.sh wrapper or a pixi
 # process in between, whose command lines also mention livereduce.py but would die on SIGHUP
@@ -127,18 +132,18 @@ changed() {  # returns 0 and updates the stored hash if content differs
 # Signals go straight to the process rather than through systemctl: both services run as the same
 # user, so no polkit permission is needed, and the livereduce.sh wrapper stays out of the way.
 signal_livereduce() {
-    local signal="${1}"
-    local reason="${2}"
-    {
-        echo -e "\n#############################################################################"
-        echo "$(date --iso-8601=seconds) ${reason}"
-        if pkill "-${signal}" -u "$(id -u)" -f "${LIVEREDUCE_PATTERN}"; then
-            echo "sent SIG${signal} to livereduce.py"
-        else
-            # nothing to do - it picks up the current files whenever it next starts
-            echo "livereduce.py is not running, no SIG${signal} sent"
-        fi
-    } >>"${FILEWATCH_LOG}"
+    local signal="${1}" reason="${2}" result entry
+    # signal first, so a log file that can't be written never stops the change being delivered
+    if pkill "-${signal}" -u "$(id -u)" -f "${LIVEREDUCE_PATTERN}"; then
+        result="sent SIG${signal} to livereduce.py"
+    else
+        # nothing to do - it picks up the current files whenever it next starts
+        result="livereduce.py is not running, no SIG${signal} sent"
+    fi
+    entry="$(date --iso-8601=seconds) ${reason}"$'\n'"${result}"
+    echo "${entry}" # journal
+    printf '\n%s\n%s\n' "#############################################################################" "${entry}" \
+        >>"${FILEWATCH_LOG}" 2>/dev/null || echo "WARNING: could not write to ${FILEWATCH_LOG}" >&2
 }
 
 ##################################################################################################

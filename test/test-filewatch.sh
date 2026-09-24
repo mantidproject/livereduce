@@ -173,6 +173,9 @@ echo '{"script_dir": "'"${SCRIPTS}"'", "proc_script": "'"${PROC}"'"}' >"${LIVERE
 expect_startup_error "published paths missing a script are rejected" "missing a script path" "${CONF}"
 publish "${T}/missing" TEST
 expect_startup_error "missing script_dir is rejected" "does not exist" "${CONF}"
+sed "s#${FILEWATCH_LOG}#${T}/nope/filewatch.log#" "${WATCHER}" >"${T}/watcher_badlog.sh"
+output="$(bash "${T}/watcher_badlog.sh" "${CONF}" 2>&1)"
+check "unwritable log file is rejected" test $? -ne 0 -a -n "$(grep -F "Cannot write to log file" <<<"${output}")"
 
 ##################################################################################################
 echo "== waiting for livereduce.py to publish the script paths"
@@ -237,6 +240,18 @@ expect_hups 6 "unrelated file in script_dir is ignored"
 rm "${POST_PROC}"
 expect_hups 7 "deleting the post-processing script sends HUP"
 
+# root can write it regardless, so this can only be checked as another user
+if [ "$(id -u)" -ne 0 ]; then
+    chmod 000 "${FILEWATCH_LOG}"
+    echo "# v8" >"${PROC}"
+    expect_hups 8 "a log file that can't be written doesn't stop the HUP"
+    check "...and the failure is reported" grep -q "could not write to ${FILEWATCH_LOG}" "${T}/watcher.out"
+    chmod 644 "${FILEWATCH_LOG}"
+else
+    echo "# v8" >"${PROC}"
+    expect_hups 8 "script edit sends HUP (unwritable log not checked as root)"
+fi
+
 ##################################################################################################
 echo "== configuration changes"
 touch "${CONF}"
@@ -261,7 +276,7 @@ check "watcher exits when the paths change, so it can reload them" wait_for 5 de
 wait "${WATCHER_PID}"
 check "watcher exit status is 0" test $? -eq 0
 check "inotifywait was stopped with it" wait_for 5 inotifywait_gone
-check "no signal sent for a path change" test "$(count HUP)" -eq 7 -a "$(count TERM)" -eq 1
+check "no signal sent for a path change" test "$(count HUP)" -eq 8 -a "$(count TERM)" -eq 1
 WATCHER_PID=""
 
 ##################################################################################################

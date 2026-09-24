@@ -74,6 +74,9 @@ tail -f /var/log/SNS_applications/livereduce_filewatch.log
 - Whether the daemon was sent `SIGHUP` (reload scripts) or `SIGTERM` (restart)
 - When the file watcher restarted to watch new script paths
 
+Each entry is also in `sudo journalctl -u livereduce_filewatch`. If the log file can't be written,
+changes are still applied, and the journal shows "WARNING: could not write to ..." instead.
+
 ### 5. Instrument-Specific Logs
 
 Some post-processing scripts create their own logs:
@@ -360,6 +363,9 @@ sudo journalctl -u livereduce_filewatch -n 50
 - "script_dir '...' does not exist" - the directory the daemon resolved from the configuration is
   missing. **Fix**: create it, or correct `script_dir` in `/etc/livereduce.conf`
 - "Directory of config file '...' does not exist" - **Fix**: check the path given to the service
+- "Cannot write to log file '...'" - `snsdata` can't write
+  `/var/log/SNS_applications/livereduce_filewatch.log`. **Fix**: check the file and directory are
+  owned by `snsdata`
 
 **Waiting, not failing**: "Waiting for livereduce.py to publish '/run/livereduce/scripts.json'" is
 normal while the daemon starts. If it lasts, check `systemctl status livereduce`.

@@ -412,9 +412,13 @@ systemctl status livereduce_filewatch
 # View file watcher log - one entry per change acted on
 tail -f /var/log/SNS_applications/livereduce_filewatch.log
 
-# File watcher journal - which files are being watched
+# File watcher journal - which files are being watched, plus a copy of each log entry
 sudo journalctl -u livereduce_filewatch -f
 ```
+
+The file watcher won't start if it can't write its log file. If the log becomes unwritable later
+(e.g. after log rotation), it still signals the daemon and warns in the journal instead, so a
+broken log never stops a change being applied.
 
 ### When to Use File Watcher
 
