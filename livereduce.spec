@@ -24,13 +24,18 @@ BuildRequires: python%{python3_pkgversion}
 BuildRequires: systemd-rpm-macros
 
 Requires: python%{python3_pkgversion}
+Requires: inotify-tools
 Requires: jq
 Requires: nsd-app-wrap
 Requires: polkit
 Requires: systemd
 
 %description
-Daemon for running the algorithm StartLiveData
+Daemon for running the algorithm StartLiveData. Also provides the optional livereduce_filewatch
+service, which watches /etc/livereduce.conf and the processing/post-processing scripts, since
+livereduce itself only reads them at startup. When a script's content changes, livereduce reloads
+it in place (SIGHUP). When the configuration changes, livereduce exits and systemd restarts it
+with the new configuration (SIGTERM).
 
 %{?python_provide:%python_provide python%{python3_pkgversion}-%{srcname}}
 
@@ -41,17 +46,6 @@ Requires:  python-%{srcname} = %{version}-%{release}
 
 %description watchdog
 Daemon that monitors the livereduce log file and restarts service livereduce if necessary
-
-%package filewatch
-Summary: File watcher for restarting livereduce daemon on configuration/script changes
-# may need to tweak the main package name as macros change
-Requires:  python-%{srcname} = %{version}-%{release}
-Requires:  inotify-tools
-
-%description filewatch
-Daemon that watches /etc/livereduce.conf and the processing/post-processing scripts, and
-restarts service livereduce whenever any of them are created, modified, or deleted. livereduce
-itself only reads these files at startup (see "Remove pyinotify" mantidproject/livereduce#74).
 
 %prep
 %setup -q -n %{srcname}-%{version}
@@ -87,7 +81,7 @@ itself only reads these files at startup (see "Remove pyinotify" mantidproject/l
 %{__id} snsdata > /dev/null 2>&1 || { echo "Error: snsdata user not found. Please create it before installing this package."; exit 1; }
 
 %post
-%systemd_post livereduce.service
+%systemd_post livereduce.service livereduce_filewatch.service
 %{__mkdir} -p /var/log/SNS_applications/
 %{__chown} snsdata /var/log/SNS_applications/
 %{__chmod} 1755 /var/log/SNS_applications/
@@ -95,41 +89,30 @@ itself only reads these files at startup (see "Remove pyinotify" mantidproject/l
 %post watchdog
 %systemd_post livereduce_watchdog.service
 
-%post filewatch
-%systemd_post livereduce_filewatch.service
-
 %preun
-%systemd_preun livereduce.service
+%systemd_preun livereduce.service livereduce_filewatch.service
 %{__rm} -f /var/log/SNS_applications/livereduce.log*
+%{__rm} -f /var/log/SNS_applications/livereduce_filewatch.log*
 
 %preun watchdog
 %systemd_preun livereduce_watchdog.service
 %{__rm} -f /var/log/SNS_applications/livereduce_watchdog.log*
 
-%preun filewatch
-%systemd_preun livereduce_filewatch.service
-%{__rm} -f /var/log/SNS_applications/livereduce_filewatch.log*
-
 %postun
-%systemd_postun_with_restart livereduce.service
+%systemd_postun_with_restart livereduce.service livereduce_filewatch.service
 
 %postun watchdog
 %systemd_postun_with_restart livereduce_watchdog.service
-
-%postun filewatch
-%systemd_postun_with_restart livereduce_filewatch.service
 
 %files
 %doc README.md
 %{_bindir}/livereduce.py
 %{_bindir}/livereduce.sh
 %{_unitdir}/livereduce.service
+%{_bindir}/livereduce_filewatch.sh
+%{_unitdir}/livereduce_filewatch.service
 
 %files watchdog
 %{_bindir}/livereduce_watchdog.sh
 %{_unitdir}/livereduce_watchdog.service
 %config(noreplace) %{_sysconfdir}/polkit-1/rules.d/50-snsdata-livereduce.rules
-
-%files filewatch
-%{_bindir}/livereduce_filewatch.sh
-%{_unitdir}/livereduce_filewatch.service
