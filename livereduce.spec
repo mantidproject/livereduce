@@ -24,13 +24,18 @@ BuildRequires: python%{python3_pkgversion}
 BuildRequires: systemd-rpm-macros
 
 Requires: python%{python3_pkgversion}
+Requires: inotify-tools
 Requires: jq
 Requires: nsd-app-wrap
 Requires: polkit
 Requires: systemd
 
 %description
-Daemon for running the algorithm StartLiveData
+Daemon for running the algorithm StartLiveData. Also provides the optional livereduce_filewatch
+service, which watches /etc/livereduce.conf and the processing/post-processing scripts, since
+livereduce itself only reads them at startup. When a script's content changes, livereduce reloads
+it in place (SIGHUP). When the configuration changes, livereduce exits and systemd restarts it
+with the new configuration (SIGTERM).
 
 %{?python_provide:%python_provide python%{python3_pkgversion}-%{srcname}}
 
@@ -61,6 +66,9 @@ Daemon that monitors the livereduce log file and restarts service livereduce if 
 %{__install} -m 644 livereduce_watchdog.service %{buildroot}%{_unitdir}/
 %{__mkdir} -p %{buildroot}%{_sysconfdir}/polkit-1/rules.d/
 %{__install} -m 644 50-snsdata-livereduce.rules %{buildroot}%{_sysconfdir}/polkit-1/rules.d/
+# filewatch service
+%{__install} -m 755 scripts/livereduce_filewatch.sh %{buildroot}%{_bindir}/
+%{__install} -m 644 livereduce_filewatch.service %{buildroot}%{_unitdir}/
 
 %check
 # no test step
@@ -73,7 +81,7 @@ Daemon that monitors the livereduce log file and restarts service livereduce if 
 %{__id} snsdata > /dev/null 2>&1 || { echo "Error: snsdata user not found. Please create it before installing this package."; exit 1; }
 
 %post
-%systemd_post livereduce.service
+%systemd_post livereduce.service livereduce_filewatch.service
 %{__mkdir} -p /var/log/SNS_applications/
 %{__chown} snsdata /var/log/SNS_applications/
 %{__chmod} 1755 /var/log/SNS_applications/
@@ -82,15 +90,16 @@ Daemon that monitors the livereduce log file and restarts service livereduce if 
 %systemd_post livereduce_watchdog.service
 
 %preun
-%systemd_preun livereduce.service
+%systemd_preun livereduce.service livereduce_filewatch.service
 %{__rm} -f /var/log/SNS_applications/livereduce.log*
+%{__rm} -f /var/log/SNS_applications/livereduce_filewatch.log*
 
 %preun watchdog
 %systemd_preun livereduce_watchdog.service
 %{__rm} -f /var/log/SNS_applications/livereduce_watchdog.log*
 
 %postun
-%systemd_postun_with_restart livereduce.service
+%systemd_postun_with_restart livereduce.service livereduce_filewatch.service
 
 %postun watchdog
 %systemd_postun_with_restart livereduce_watchdog.service
@@ -100,6 +109,8 @@ Daemon that monitors the livereduce log file and restarts service livereduce if 
 %{_bindir}/livereduce.py
 %{_bindir}/livereduce.sh
 %{_unitdir}/livereduce.service
+%{_bindir}/livereduce_filewatch.sh
+%{_unitdir}/livereduce_filewatch.service
 
 %files watchdog
 %{_bindir}/livereduce_watchdog.sh

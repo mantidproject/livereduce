@@ -1,4 +1,4 @@
-# Standard library imports
+import hashlib
 import json
 import logging
 import os
@@ -8,7 +8,6 @@ import sys
 import threading
 import time
 
-# Third-party imports
 import mantid  # for clearer error message
 import psutil
 from mantid.kernel import InstrumentInfo
@@ -17,9 +16,9 @@ from mantid.utils.logging import log_to_python as mtd_log_to_python
 
 CONVERSION_FACTOR_BYTES_TO_MB = 1.0 / (1024 * 1024)
 
-# ##################
+###################
 # configure logging
-# ##################
+###################
 LOG_NAME = "livereduce"  # constant for logging
 LOG_FILE = "/var/log/SNS_applications/livereduce.log"
 
@@ -53,8 +52,16 @@ logger = logging.getLogger(LOG_NAME)
 logger.info("logging started by user '" + os.environ["USER"] + "'")
 logger.info(f"using python interpreter {sys.executable}")
 
+# where the resolved processing-script paths are published for livereduce_filewatch.sh, which
+# can't resolve them itself (it would need mantid). /run/livereduce is created by livereduce.service
+if os.environ["USER"] == "snsdata":
+    SCRIPTS_FILE = "/run/livereduce/scripts.json"
+else:
+    SCRIPTS_FILE = "livereduce_scripts.json"
+SCRIPTS_FILE = os.environ.get("LIVEREDUCE_SCRIPTS_FILE", SCRIPTS_FILE)
 
-# ##################
+
+####################
 class LiveDataManager:
     """class for handling ``StartLiveData`` and ``MonitorLiveData``"""
 
@@ -111,31 +118,45 @@ class LiveDataManager:
             mtd.clear()
             self.start()
 
+    def reload_scripts(self):
+        # refresh under the lock so the memory checker cannot restart with the old script list
+        with self._lock:
+            self.logger.info("Reloading processing scripts")
+            self.config.refreshScripts()
+            self.restart_and_clear()
 
-# ##################
+
+####################
 # register a signal handler so we can exit gracefully if someone kills us
-# ##################
-# signal.SIGHUP - hangup does nothing
+####################
+# signal.SIGHUP - reload the processing scripts without restarting the process
+#                 (sent by livereduce_filewatch.sh when a script changes)
 # signal.SIGSTOP - doesn't want to register
 # signal.SIGKILL - doesn't want to register
-sig_name = {signal.SIGINT: "SIGINT", signal.SIGQUIT: "SIGQUIT", signal.SIGTERM: "SIGTERM"}
+sig_name = {
+    signal.SIGHUP: "SIGHUP",
+    signal.SIGINT: "SIGINT",
+    signal.SIGQUIT: "SIGQUIT",
+    signal.SIGTERM: "SIGTERM",
+}
 
-# the signal handler hands the signal to the main loop, which does the actual shutdown.
+# the signal handler hands the signal to the main loop, which does the actual shutdown or reload.
 # SimpleQueue.put is safe to call from a signal handler
 shutdown_requested = queue.SimpleQueue()
 
 
 def sigterm_handler(sig_received, frame):  # noqa: ARG001
-    """Record the signal and let the main loop shut things down"""
+    """Record the signal and let the main loop act on it"""
     shutdown_requested.put(sig_received)
 
 
 for signal_event in sig_name.keys():
     logger.debug("registering " + str(signal_event))
     signal.signal(signal_event, sigterm_handler)
-####################
+
+########################
 # end of signal handling
-####################
+########################
 
 
 ####################
@@ -153,11 +174,14 @@ class Config:
 
         # read file from json into a dict
         self.filename = None
+        self.config_md5 = None  # of the contents actually read, published for livereduce_filewatch.sh
         if filename is not None and os.path.exists(filename) and os.path.getsize(filename) > 0:
             self.filename = os.path.abspath(filename)
             self.logger.info(f"Loading configuration from '{filename}'")
-            with open(filename) as handle:
-                json_doc = json.load(handle)
+            with open(filename, "rb") as handle:
+                contents = handle.read()
+            self.config_md5 = hashlib.md5(contents, usedforsecurity=False).hexdigest()
+            json_doc = json.loads(contents)
             logger.debug(json.dumps(json_doc))
         else:
             self.logger.info("Using default configuration")
@@ -280,12 +304,18 @@ class Config:
             msg += str(allowed)
             raise ValueError(msg)
 
+    def refreshScripts(self):
+        r"""Re-check which processing scripts exist, for when they change after startup"""
+        self.__determineScriptNames()
+
     def __determineScriptNames(self):
         filenameStart = f"reduce_{self.instrument.shortName()!s}_live"
+        self.procScript = os.path.join(self.script_dir, filenameStart + "_proc.py")
+        self.postProcScript = os.path.join(self.script_dir, filenameStart + "_post_proc.py")
+        # before the checks below, so the watcher also sees the script that would fix a failure
+        self.__publishScriptPaths()
 
         # script for processing each chunk
-        self.procScript = filenameStart + "_proc.py"
-        self.procScript = os.path.join(self.script_dir, self.procScript)
         self.procScriptExist = os.path.exists(self.procScript)
 
         if self.procScriptExist and os.path.getsize(self.procScript) <= 0:
@@ -293,8 +323,6 @@ class Config:
             raise RuntimeError(msg)
 
         # script for processing accumulation
-        self.postProcScript = filenameStart + "_post_proc.py"
-        self.postProcScript = os.path.join(self.script_dir, self.postProcScript)
         self.postProcScriptExist = os.path.exists(self.postProcScript)
 
         if self.postProcScriptExist and os.path.getsize(self.postProcScript) <= 0:
@@ -305,6 +333,33 @@ class Config:
         if not self.procScriptExist and not self.postProcScriptExist:
             msg = f"Must provide at least one of '{self.procScript}' and/or '{self.postProcScript}'"
             raise RuntimeError(msg)
+
+    def __publishScriptPaths(self):
+        r"""Write the config and script paths to SCRIPTS_FILE for livereduce_filewatch.sh, with the md5 of
+        what was loaded so the watcher can tell if a file changed before it started watching. The watcher is
+        optional, so a failure is only logged. Written to a temp file and renamed so it is never read half-written"""
+
+        def md5(filename):  # None for a missing or empty file, which livereduce treats as absent
+            if not os.path.isfile(filename) or os.path.getsize(filename) == 0:
+                return None
+            with open(filename, "rb") as handle:
+                return hashlib.md5(handle.read(), usedforsecurity=False).hexdigest()
+
+        paths = dict(
+            config_file=self.filename,
+            config_md5=self.config_md5,
+            script_dir=self.script_dir,
+            proc_script=self.procScript,
+            proc_md5=md5(self.procScript),
+            post_proc_script=self.postProcScript,
+            post_proc_md5=md5(self.postProcScript),
+        )
+        try:
+            with open(SCRIPTS_FILE + ".tmp", "w") as handle:
+                json.dump(paths, handle, indent=2)
+            os.replace(SCRIPTS_FILE + ".tmp", SCRIPTS_FILE)
+        except OSError as ex:
+            self.logger.warning(f"could not publish processing script paths to '{SCRIPTS_FILE}': {ex}")
 
     def toStartLiveArgs(self):
         self.__validateStartLiveDataProps()
@@ -392,9 +447,20 @@ if config.system_mem_limit_perc > 0:
     memory_thread = threading.Thread(target=memory_checker, args=(config, liveDataMgr), daemon=True)
     memory_thread.start()
 
-# keep the program running until a signal asks us to stop
-signal_received = shutdown_requested.get()
-logger.info(f"received {sig_name[signal_received]}({signal_received})")
+# keep the program running until a signal asks us to stop. SIGHUP reloads the processing scripts
+# in-process and keeps going; if that fails, shut down with an error so systemd restarts us
+exit_code = 0
+while True:
+    signal_received = shutdown_requested.get()
+    logger.info(f"received {sig_name[signal_received]}({signal_received})")
+    if signal_received != signal.SIGHUP:
+        break
+    try:
+        liveDataMgr.reload_scripts()
+    except RuntimeError as ex:
+        logger.error(f"failed to reload processing scripts: {ex}")
+        exit_code = 1
+        break
 
 # cleanup - done here rather than in the signal handler so mantid can shut down cleanly
 try:
@@ -404,4 +470,4 @@ except RuntimeError as ex:
 
 if signal_received == signal.SIGQUIT:
     raise RuntimeError(f"received {sig_name[signal_received]}({signal_received})")
-sys.exit(0)
+sys.exit(exit_code)

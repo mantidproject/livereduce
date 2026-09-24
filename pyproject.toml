@@ -1,7 +1,7 @@
 [project]
 name = "livereduce"
 description = "Daemon for running live data reduction with systemd"
-version = "1.23"
+version = "1.24"
 requires-python = ">=3.9"
 license = { text = "MIT License" }
 authors = [{name="Pete Peterson",email="petersonpf@ornl.gov"}]
@@ -42,6 +42,7 @@ livereduce = { path = ".", editable = true }
 
 [tool.pixi.feature.test.dependencies]
 bats-core = "*"
+inotify-tools = ">=3.20.2,<4"
 
 [tool.pixi.tasks]
 build = "hatchling build -t sdist"
@@ -65,8 +66,11 @@ docker run --rm livereduce-rpm:local bash -ec '
   sudo rpm -ivh --nodeps $RPM_DIR/*.noarch.rpm
   test -f /usr/bin/livereduce.sh
   test -f /usr/bin/livereduce_watchdog.sh
+  test -f /usr/bin/livereduce_filewatch.sh
   test -f /usr/lib/systemd/system/livereduce.service
   test -f /usr/lib/systemd/system/livereduce_watchdog.service
+  test -f /usr/lib/systemd/system/livereduce_filewatch.service
+  rpm -qf --queryformat "%{NAME}" /usr/bin/livereduce_filewatch.sh | grep -qx python-livereduce
   test -f /etc/polkit-1/rules.d/50-snsdata-livereduce.rules
   test -d /var/log/SNS_applications
   test "$(stat -c %U /var/log/SNS_applications)" = snsdata
@@ -75,6 +79,8 @@ docker run --rm livereduce-rpm:local bash -ec '
   sudo systemctl --dry-run disable livereduce.service
   sudo systemctl --dry-run enable  livereduce_watchdog.service
   sudo systemctl --dry-run disable livereduce_watchdog.service
+  sudo systemctl --dry-run enable  livereduce_filewatch.service
+  sudo systemctl --dry-run disable livereduce_filewatch.service
 '
 """
 depends-on = ["rpm-build"]
@@ -93,5 +99,23 @@ depends-on = ["rpm-build"]
 [tool.pixi.tasks.rpm-all]
 depends-on = ["rpm-build", "rpm-test", "rpm-fetch"]
 
+# runs livereduce.service and livereduce_filewatch.service under systemd in a container, with a
+# stand-in livereduce.py, to check restarts and reloads. --privileged is needed for systemd as PID 1
+[tool.pixi.tasks.test-systemd]
+cmd = """
+bash -ec '
+  id -nG | grep -qw docker || {
+    echo "ERROR: current user ($(id -un)) must be in docker group (sudo usermod -aG docker $(id -un) && newgrp docker)"
+    exit 1
+  }
+  docker build --tag livereduce-systemd-test:local -f test/systemd/Dockerfile .
+  CID=$(docker run --detach --privileged livereduce-systemd-test:local)
+  trap "docker rm --force $CID >/dev/null" EXIT
+  docker exec "$CID" systemctl is-system-running --wait >/dev/null || true
+  docker exec "$CID" /usr/local/bin/check_restarts.sh
+'
+"""
+
 [tool.pixi.feature.test.tasks]
 test-bash = "bats test/test_livereduce.bats"
+test-filewatch = "bash test/test-filewatch.sh"

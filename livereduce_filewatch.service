@@ -1,0 +1,13 @@
+[Unit]
+Description=Livereduce File Watcher
+After=livereduce.service
+
+[Service]
+WorkingDirectory=/tmp
+User=snsdata
+ExecStart=/usr/bin/livereduce_filewatch.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

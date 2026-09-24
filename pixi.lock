@@ -34,6 +34,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/hdf5-1.14.6-nompi_h19486de_110.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/icu-78.3-py310h44b86e0_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/imath-3.2.2-hde8ca8f_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/inotify-tools-3.20.2-h516909a_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/jasper-4.2.9-h1588d4d_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/jsoncpp-1.9.6-hf42df4d_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/jxrlib-1.1-hd590300_3.conda
@@ -501,6 +502,17 @@ packages:
     - imath >=3.2.2,<3.2.3.0a0
   size: 160289
   timestamp: 1759983212466
+- conda: https://conda.anaconda.org/conda-forge/linux-64/inotify-tools-3.20.2-h516909a_0.tar.bz2
+  sha256: d37b4cf1a3c7a3281f1460c22f9b002132029b197b044c55c4ea68b10f75c433
+  md5: 5a8fa5e66f74627339daa43a72f89fef
+  depends:
+  - libgcc-ng >=7.3.0
+  license: GPL-2.0
+  license_family: GPL
+  purls: []
+  run_exports: {}
+  size: 63029
+  timestamp: 1580805938744
 - conda: https://conda.anaconda.org/conda-forge/linux-64/jasper-4.2.9-h1588d4d_1.conda
   sha256: a6a9858eadb4c794b56a1c954c1d4f4b57d96c9fb87092dd46f5bff9b0697b35
   md5: 115ecf05370670f93bc81a8c4f7fd57f
