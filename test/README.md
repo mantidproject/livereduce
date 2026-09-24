@@ -47,6 +47,18 @@ This test case will continuously accumulate events until it fails.
 Start the server using `test/fake_event_server.py` and use the configuration `test/fake_event.conf`.
 
 
+Testing the file watcher
+------------------------
+
+`test/test-filewatch.sh` runs `scripts/livereduce_filewatch.sh` on its own, against a stand-in
+livereduce.py that records the signals it receives. It checks which changes send `SIGHUP` or
+`SIGTERM` and which are ignored, saves made of several steps, symlinks, changes made before the
+watcher started, and startup errors. Only `inotify-tools`, `jq` and python are needed.
+
+```
+$ pixi run test-filewatch
+```
+
 Testing the file watcher under systemd
 --------------------------------------
 

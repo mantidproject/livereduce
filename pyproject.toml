@@ -118,3 +118,4 @@ bash -ec '
 
 [tool.pixi.feature.test.tasks]
 test-bash = "bats test/test_livereduce.bats"
+test-filewatch = "bash test/test-filewatch.sh"
