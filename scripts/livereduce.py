@@ -8,24 +8,41 @@ import sys
 import threading
 import time
 
+# https://share.google/aimode/4HNm38pVHdOlNtbaq
+# really? deadlocking in multithreaded code? in 2026?
+os.environ["OMP_NUM_THREADS"] = "1"
+
 # Third-party imports
-import mantid  # for clearer error message
+import mantid  # DO NOT: only reason this is here is because it wants to log mantid.__file__
 import psutil
-from mantid.kernel import InstrumentInfo
+
+##from mantid.utils.logging import log_to_python as mtd_log_to_python
+from mantid import AlgorithmManager
+from mantid.kernel import ConfigService, InstrumentInfo, UsageService
 from mantid.simpleapi import StartLiveData, mtd
-from mantid.utils.logging import log_to_python as mtd_log_to_python
 
 CONVERSION_FACTOR_BYTES_TO_MB = 1.0 / (1024 * 1024)
 
 # ##################
 # configure logging
 # ##################
+
+# https://share.google/aimode/pUQI0cXBQdwD18j2D
+# without the hallucination ^
+ConfigService.setLogLevel(4)  # 3 = Error, 4 = Warning, 6 = Information, 7 = Debug
+
+# shotgun: Force the framework backend channels to drop Python wrapper routing
+ConfigService["logging.channels.appender.class"] = "ConsoleChannel"
+ConfigService["logging.channels.warningAppender.class"] = "ConsoleChannel"
+
 LOG_NAME = "livereduce"  # constant for logging
 LOG_FILE = "/var/log/SNS_applications/livereduce.log"
 
 # mantid should let python logging do the work
-mtd_log_to_python("information")
-logging.getLogger("Mantid").setLevel(logging.INFO)
+##mtd_log_to_python("information")
+logging.getLogger("Mantid").setLevel(logging.CRITICAL)  # shotgun: silence mantid
+logging.getLogger("mantid").setLevel(logging.CRITICAL)  # shotgun: in case
+logging.getLogger().handlers = []  # shotgun: clear root handlers
 
 # create a file handler
 if os.environ["USER"] == "snsdata":
@@ -70,7 +87,7 @@ class LiveDataManager:
 
     def start(self):
         with self._lock:
-            mtd_log_to_python("information")
+            ##mtd_log_to_python("information")
 
             liveArgs = self.config.toStartLiveArgs()
             self.logger.info("StartLiveData(" + json.dumps(liveArgs, sort_keys=True, indent=2) + ")")
@@ -91,13 +108,13 @@ class LiveDataManager:
                 # GIL while joining the mantid worker threads, and log_to_python means those
                 # threads need the GIL to emit their log messages - going straight to shutdown()
                 # deadlocks.
-                mantid.AlgorithmManager.cancelAll()
+                AlgorithmManager.cancelAll()
                 deadline = time.time() + timeout
-                while mantid.AlgorithmManager.runningInstancesOf("MonitorLiveData"):
+                while AlgorithmManager.runningInstancesOf("MonitorLiveData"):
                     if time.time() > deadline:
                         raise RuntimeError("MonitorLiveData algorithm could not be stopped")
                     time.sleep(0.1)  # releases the GIL so the worker threads can finish
-                mantid.AlgorithmManager.shutdown()  # wait until all async-started algorithms complete
+                AlgorithmManager.shutdown()  # wait until all async-started algorithms complete
             else:
                 cls.logger.info("mantid not initialized - nothing to cleanup")
 
@@ -172,12 +189,12 @@ class Config:
         self.logger.info(f'mantid_loc="{os.path.dirname(mantid.__file__)}"')
 
         try:
-            from mantid.kernel import UsageService  # noqa: PLC0415
+            ##from mantid.kernel import UsageService
 
             # to differentiate from other apps
             UsageService.setApplicationName("livereduce")
         except Exception:
-            self.logger.error("General error while importing mantid.kernel.ConfigService:", exc_info=True)
+            self.logger.error("General error calling mantid.kernel.UsageService:", exc_info=True)
             raise
 
         self.instrument = self.__getSetInstrument(json_doc.get("instrument"))
@@ -241,7 +258,7 @@ class Config:
             If there is a general error while getting the instrument.
         """
         try:
-            from mantid.kernel import ConfigService  # noqa: PLC0415
+            ##from mantid.kernel import ConfigService
 
             if instrument is None:
                 self.logger.info("Using default instrument")
@@ -263,15 +280,15 @@ class Config:
                     ConfigService["default.instrument"] = str(instrument_instance)
                     self.logger.info(f"Default Instrument set to {instrument_instance!s}")
                 return instrument_instance
-        except ImportError:
-            self.logger.error("Failed to import mantid.ConfigService", exc_info=True)
-            raise
+        ##except ImportError:
+        ##    self.logger.error("Failed to import mantid.ConfigService", exc_info=True)
+        ##    raise
         except:
             self.logger.error("General error while getting instrument", exc_info=True)
             raise
 
     def __validateStartLiveDataProps(self):
-        alg = mantid.AlgorithmManager.createUnmanaged("StartLiveData")
+        alg = AlgorithmManager.createUnmanaged("StartLiveData")
         alg.initialize()
 
         allowed = alg.getProperty("AccumulationMethod").allowedValues
