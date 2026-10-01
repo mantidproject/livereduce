@@ -5,75 +5,75 @@ on:
   pull_request:
   push:
     branches: [main, qa, next]
-    tags: ['v*']
+    tags: ["v*"]
 
 jobs:
   rpm-quick-check:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      uses: actions/checkout@v7
-    - name: Make quick_check.sh executable
-      run: chmod +x test/rpm/quick_check.sh
-    - name: Run RPM spec quick check
-      run: ./test/rpm/quick_check.sh
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Make quick_check.sh executable
+        run: chmod +x test/rpm/quick_check.sh
+      - name: Run RPM spec quick check
+        run: ./test/rpm/quick_check.sh
 
   bash-tests:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      uses: actions/checkout@v7
-    - name: Setup Pixi
-      uses: prefix-dev/setup-pixi@v0.10.2
-    - name: Run BATS tests
-      run: pixi run test-bash
-    - name: Run Python tests
-      run: pixi run pytest
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Pixi
+        uses: prefix-dev/setup-pixi@v0.10.2
+      - name: Run BATS tests
+        run: pixi run test-bash
+      - name: Run Python tests
+        run: pixi run pytest
 
   python-build:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      uses: actions/checkout@v7
-    - name: Setup Pixi
-      uses: prefix-dev/setup-pixi@v0.10.2
-    - name: Build source distribution
-      run: | # this is used as part of making the rpm
-        pixi run build
-        # the package isn't built because this is a unusual package
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Pixi
+        uses: prefix-dev/setup-pixi@v0.10.2
+      - name: Build source distribution
+        run: | # this is used as part of making the rpm
+          pixi run build
+          # the package isn't built because this is a unusual package
 
   rpmlint:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      uses: actions/checkout@v7
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v4
-    - name: Build and push Docker images
-      uses: docker/build-push-action@v7
-      with:
-        file: Dockerfile.rpmlint
-        tags: neutrons/rpmlint:latest
-        outputs: type=docker,dest=${{ runner.temp }}/rpmlint.tar
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-    - name: Lint rpm
-      run: |
-        echo "This passes with warnings"
-        docker load --input ${{ runner.temp }}/rpmlint.tar
-        docker run -v ./livereduce.spec:/tmp/livereduce.spec neutrons/rpmlint:latest rpmlint -i  /tmp/livereduce.spec
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Build and push Docker images
+        uses: docker/build-push-action@v7
+        with:
+          file: Dockerfile.rpmlint
+          tags: neutrons/rpmlint:latest
+          outputs: type=docker,dest=${{ runner.temp }}/rpmlint.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Lint rpm
+        run: |
+          echo "This passes with warnings"
+          docker load --input ${{ runner.temp }}/rpmlint.tar
+          docker run -v ./livereduce.spec:/tmp/livereduce.spec neutrons/rpmlint:latest rpmlint -i  /tmp/livereduce.spec
 
   rpm:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      uses: actions/checkout@v7
-    - name: Setup Pixi
-      uses: prefix-dev/setup-pixi@v0.10.2
-    - name: Build, test, and fetch RPMs
-      run: pixi run rpm-all
-    - name: Upload RPM artifacts
-      uses: actions/upload-artifact@v7
-      with:
-        name: livereduce-rpms
-        path: dist/rpm/*.rpm
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Pixi
+        uses: prefix-dev/setup-pixi@v0.10.2
+      - name: Build, test, and fetch RPMs
+        run: pixi run rpm-all
+      - name: Upload RPM artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: livereduce-rpms
+          path: dist/rpm/*.rpm
