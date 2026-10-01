@@ -1,6 +1,6 @@
 #!/bin/bash
 # Checks how livereduce_filewatch.service drives livereduce.service under real systemd.
-# Runs as root inside the container built from test/systemd/Dockerfile (see `pixi run test-systemd`).
+# Runs as root inside the container built from the root Dockerfile (see `pixi run test-systemd`).
 set -u
 
 DAEMON_LOG="/var/log/SNS_applications/livereduce.log" # written by fake_livereduce.py

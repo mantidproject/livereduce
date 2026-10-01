@@ -108,13 +108,17 @@ bash -ec '
     echo "ERROR: current user ($(id -un)) must be in docker group (sudo usermod -aG docker $(id -un) && newgrp docker)"
     exit 1
   }
-  docker build --tag livereduce-systemd-test:local -f test/systemd/Dockerfile .
-  CID=$(docker run --detach --privileged livereduce-systemd-test:local)
+  CID=$(docker run --detach --privileged livereduce-rpm:local)
   trap "docker rm --force $CID >/dev/null" EXIT
   docker exec "$CID" systemctl is-system-running --wait >/dev/null || true
+  docker exec "$CID" bash -ec '
+    rpm -ivh --nodeps /home/builder/rpmbuild/RPMS/noarch/*.rpm
+    cp /usr/local/share/livereduce-test/livereduce.py /usr/bin/livereduce.py
+  '
   docker exec "$CID" /usr/local/bin/check_restarts.sh
 '
 """
+depends-on = ["rpm-build"]
 
 [tool.pixi.feature.test.tasks]
 test-bash = "bats test/test_livereduce.bats"
