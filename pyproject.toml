@@ -4,7 +4,7 @@ description = "Daemon for running live data reduction with systemd"
 version = "1.23"
 requires-python = ">=3.9"
 license = { text = "MIT License" }
-authors = [{name="Pete Peterson",email="petersonpf@ornl.gov"}]
+authors = [{ name = "Pete Peterson", email = "petersonpf@ornl.gov" }]
 
 [project.urls]
 Homepage = "https://github.com/mantidproject/livereduce"
@@ -23,9 +23,7 @@ platforms = ["linux-64"]
 preview = ["pixi-build"]
 
 [tool.pixi.environments]
-default = { features = [
-  "test",
-], solve-group = "default" }
+default = { features = ["test"], solve-group = "default" }
 
 [tool.pixi.package.build]
 backend = { name = "pixi-build-python", version = "0.1.*" }
@@ -42,6 +40,8 @@ livereduce = { path = ".", editable = true }
 
 [tool.pixi.feature.test.dependencies]
 bats-core = "*"
+pytest = "*"
+ruff = "*"
 
 [tool.pixi.tasks]
 build = "hatchling build -t sdist"
@@ -95,3 +95,4 @@ depends-on = ["rpm-build", "rpm-test", "rpm-fetch"]
 
 [tool.pixi.feature.test.tasks]
 test-bash = "bats test/test_livereduce.bats"
+test-python = "pytest test/"
