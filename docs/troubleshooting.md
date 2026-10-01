@@ -63,7 +63,21 @@ tail -f /var/log/SNS_applications/livereduce_watchdog.log
 - Last 20 lines of main log before restart
 - Service restart actions
 
-### 4. Instrument-Specific Logs
+### 4. File Watcher Log (if enabled)
+
+```bash
+tail -f /var/log/SNS_applications/livereduce_filewatch.log
+```
+
+**Shows**:
+- Which configuration or script change was detected
+- Whether the daemon was sent `SIGHUP` (reload scripts) or `SIGTERM` (restart)
+- When the file watcher restarted to watch new script paths
+
+Each entry is also in `sudo journalctl -u livereduce_filewatch`. If the log file can't be written,
+changes are still applied, and the journal shows "WARNING: could not write to ..." instead.
+
+### 5. Instrument-Specific Logs
 
 Some post-processing scripts create their own logs:
 ```bash
@@ -71,7 +85,7 @@ ls /SNS/INSTR/shared/livereduce/*.log
 tail -f /SNS/INSTR/shared/livereduce/INSTR_live_reduction.log
 ```
 
-### 5. System Logs
+### 6. System Logs
 
 ```bash
 # Check for systemd issues
@@ -287,9 +301,11 @@ These are NOT problems:
 **Symptom**: Updated script but behavior unchanged
 
 **Most likely cause**: the daemon loads the processing scripts at startup and does not watch them
-for changes. Every edit needs a restart.
+for changes itself. Unless the optional `livereduce_filewatch` service is running, every edit needs
+a restart.
 
-**Solution**: Restart the service
+**Solution**: Restart the service, or enable the file watcher (see
+[File Watcher Service](developer-guide.md#file-watcher-service))
 ```bash
 sudo systemctl restart livereduce
 ```
@@ -310,11 +326,49 @@ md5sum /SNS/INSTR/shared/livereduce/reduce_*
 grep "ProcessingScriptFilename" /var/log/SNS_applications/livereduce.log
 ```
 
-**Check 3: Permissions**
+**Check 3: File watcher detected change** (if enabled)
+```bash
+# Look for the change and the signal sent
+grep "changed" /var/log/SNS_applications/livereduce_filewatch.log
+
+# Check which files it is watching
+sudo journalctl -u livereduce_filewatch | grep "Watching"
+```
+
+If nothing was logged:
+- The script was edited on another host - inotify doesn't see changes made through a network
+  filesystem from another machine, so restart the service
+- The file watcher is watching other files - it watches the paths the daemon publishes in
+  `/run/livereduce/scripts.json`, so check the daemon started
+- The file watcher logged "Waiting for livereduce.py to publish" - the daemon hasn't started yet
+
+**Check 4: Permissions**
 ```bash
 # Ensure snsdata can read
 sudo -u snsdata cat /SNS/INSTR/shared/livereduce/reduce_INSTR_live_proc.py
 ```
+
+### File Watcher Not Running
+
+**Symptom**: `systemctl status livereduce_filewatch` shows it failed or restarting every 10 seconds
+
+**Check the error**:
+```bash
+sudo journalctl -u livereduce_filewatch -n 50
+```
+
+**Common errors**:
+- "Directory of '/run/livereduce/scripts.json' does not exist" - `livereduce.service` hasn't been
+  started since boot. **Fix**: `sudo systemctl start livereduce`
+- "script_dir '...' does not exist" - the directory the daemon resolved from the configuration is
+  missing. **Fix**: create it, or correct `script_dir` in `/etc/livereduce.conf`
+- "Directory of config file '...' does not exist" - **Fix**: check the path given to the service
+- "Cannot write to log file '...'" - `snsdata` can't write
+  `/var/log/SNS_applications/livereduce_filewatch.log`. **Fix**: check the file and directory are
+  owned by `snsdata`
+
+**Waiting, not failing**: "Waiting for livereduce.py to publish '/run/livereduce/scripts.json'" is
+normal while the daemon starts. If it lasts, check `systemctl status livereduce`.
 
 ## Debugging Techniques
 
@@ -370,10 +424,13 @@ Compare the deployed scripts against your local copies to confirm a file really 
 md5sum /SNS/INSTR/shared/livereduce/reduce_*
 ```
 
+The file watcher uses the same comparison: a change that leaves the md5sum unchanged is ignored.
+
 **If scripts not updating**:
 - Restart the service - scripts are only loaded at startup
 - Verify file changed
 - Check permissions
+- Ensure `livereduce_filewatch` is running, if you rely on it
 
 ### Monitoring Memory
 
@@ -444,8 +501,8 @@ sudo systemctl disable livereduce
 ### When to Restart vs Investigate
 
 **Restart when**:
-- Configuration file changed (required)
-- Processing or post-processing script changed (required)
+- Configuration file changed (required without the file watcher)
+- Processing or post-processing script changed (required without the file watcher)
 - Service shows "failed"
 - Making routine updates
 - Testing new scripts
@@ -496,11 +553,33 @@ systemctl status livereduce_watchdog
 - Service has stalling issues
 - Want automatic recovery
 
+### Managing File Watcher
+
+File watcher is independent:
+
+```bash
+# File watcher operations
+sudo systemctl start livereduce_filewatch
+sudo systemctl stop livereduce_filewatch
+systemctl status livereduce_filewatch
+
+# Stopping file watcher doesn't affect main service
+```
+
+**Disable file watcher when**:
+- Editing scripts in several steps
+- Controlling exactly when changes take effect
+- Investigating unexpected reloads or restarts
+
+**Enable file watcher when**:
+- Scripts are updated often
+- Changes should apply without a manual restart
+
 ### Log Management
 
 ```bash
 # Check size
-ls -lh /var/log/SNS_applications/livereduce.log
+ls -lh /var/log/SNS_applications/livereduce*.log
 
 # Rotate manually
 sudo logrotate -f /etc/logrotate.d/livereduce
@@ -509,9 +588,9 @@ sudo logrotate -f /etc/logrotate.d/livereduce
 sudo truncate -s 0 /var/log/SNS_applications/livereduce.log
 ```
 
-**Set up rotation** (`/etc/logrotate.d/livereduce`):
+**Set up rotation** (`/etc/logrotate.d/livereduce`), covering the watchdog and file watcher logs too:
 ```
-/var/log/SNS_applications/livereduce.log {
+/var/log/SNS_applications/livereduce*.log {
     daily
     rotate 7
     compress
@@ -584,6 +663,8 @@ When asking for help, provide:
 2. **Recent logs**:
    ```bash
    sudo journalctl -u livereduce -n 200 > livereduce_logs.txt
+   # If the file watcher is enabled
+   tail -n 50 /var/log/SNS_applications/livereduce_filewatch.log
    ```
 
 3. **Configuration**:

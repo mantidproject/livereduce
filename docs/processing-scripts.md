@@ -24,11 +24,12 @@ reduce_<INSTRUMENT>_live_proc.py          # Processing script
 reduce_<INSTRUMENT>_live_post_proc.py     # Post-processing script
 ```
 
-Where `<INSTRUMENT>` is the instrument short name (e.g., "POWGEN", "REF_M", "NOMAD").
+Where `<INSTRUMENT>` is Mantid's short name for the instrument, even if the configuration gives the
+full name (e.g., "POWGEN" becomes "PG3", "NOMAD" becomes "NOM", "REF_M" stays "REF_M").
 
 **Examples**:
-- `reduce_POWGEN_live_proc.py`
-- `reduce_POWGEN_live_post_proc.py`
+- `reduce_PG3_live_proc.py`
+- `reduce_PG3_live_post_proc.py`
 - `reduce_REF_M_live_proc.py`
 - `reduce_REF_M_live_post_proc.py`
 
@@ -44,7 +45,7 @@ The processing script receives each chunk and processes it.
 ### Template
 
 ```python
-# File: reduce_POWGEN_live_proc.py
+# File: reduce_PG3_live_proc.py
 from mantid.simpleapi import Rebin, SumSpectra, ConvertUnits, DiffractionFocussing
 
 # Available variables:
@@ -56,9 +57,7 @@ from mantid.simpleapi import Rebin, SumSpectra, ConvertUnits, DiffractionFocussi
 
 # Example: Basic powder diffraction processing
 ConvertUnits(InputWorkspace=input, OutputWorkspace=output, Target="dSpacing")
-DiffractionFocussing(
-    InputWorkspace=output, OutputWorkspace=output, GroupingFileName="/SNS/POWGEN/shared/cal_2024_01.cal"
-)
+DiffractionFocussing(InputWorkspace=output, OutputWorkspace=output, GroupingFileName="/SNS/PG3/shared/cal_2024_01.cal")
 Rebin(InputWorkspace=output, OutputWorkspace=output, Params="0.5,-0.001,2.5")
 ```
 
@@ -110,7 +109,7 @@ The post-processing script processes accumulated data.
 ### Template
 
 ```python
-# File: reduce_POWGEN_live_post_proc.py
+# File: reduce_PG3_live_post_proc.py
 import os
 from mantid.simpleapi import SaveNexus, SaveAscii, Integration, DeleteWorkspace
 
@@ -123,15 +122,15 @@ run = accumulation.getRun()
 run_number = run.getProperty("run_number").value
 
 # Output directory
-output_dir = "/SNS/POWGEN/shared/livereduce"
+output_dir = "/SNS/PG3/shared/livereduce"
 os.makedirs(output_dir, exist_ok=True)
 
 # Save data files
-SaveNexus(InputWorkspace="accumulation", Filename=f"{output_dir}/POWGEN_{run_number}_live.nxs")
+SaveNexus(InputWorkspace="accumulation", Filename=f"{output_dir}/PG3_{run_number}_live.nxs")
 
 # Create a summary workspace
 integrated = Integration(InputWorkspace="accumulation")
-SaveAscii(InputWorkspace=integrated, Filename=f"{output_dir}/POWGEN_{run_number}_integrated.txt")
+SaveAscii(InputWorkspace=integrated, Filename=f"{output_dir}/PG3_{run_number}_integrated.txt")
 
 # Clean up temporary workspaces
 DeleteWorkspace(integrated)
@@ -403,10 +402,17 @@ exec(open('reduce_INSTR_live_proc.py').read())
 
 ### Script Not Updating
 
-Scripts are loaded at startup only, so the daemon must be restarted after every edit.
+Scripts are loaded at startup only. Unless the optional `livereduce_filewatch` service is running,
+the daemon must be restarted after every edit.
 
 ```bash
-# Restart to load the edited script
+# Check whether the file watcher is running
+systemctl status livereduce_filewatch
+
+# Check what the file watcher saw
+tail /var/log/SNS_applications/livereduce_filewatch.log
+
+# Without the file watcher, restart to load the edited script
 sudo systemctl restart livereduce
 
 # Check if file actually changed
@@ -438,7 +444,7 @@ grep "ProcessingScriptFilename" /var/log/SNS_applications/livereduce.log
 ### Deployment
 - Test locally before production
 - Deploy during low-activity periods
-- Restart the daemon so the new script is loaded
+- Restart the daemon so the new script is loaded, unless `livereduce_filewatch` is running
 - Monitor logs after deployment
 - Keep backups of working versions
 

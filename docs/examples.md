@@ -114,7 +114,7 @@ This demonstrates:
 }
 ```
 
-**Processing script:** `/SNS/POWGEN/shared/livereduce/reduce_POWGEN_live_proc.py`
+**Processing script:** `/SNS/PG3/shared/livereduce/reduce_PG3_live_proc.py`
 
 ```python
 from mantid.simpleapi import AlignAndFocusPowder, ConvertUnits, Rebin, SaveNexus
@@ -123,7 +123,7 @@ from mantid.simpleapi import AlignAndFocusPowder, ConvertUnits, Rebin, SaveNexus
 AlignAndFocusPowder(
     InputWorkspace=input,
     OutputWorkspace=output,
-    CalFileName="/SNS/POWGEN/shared/calibration/POWGEN_2024.cal",
+    CalFileName="/SNS/PG3/shared/calibration/PG3_2024.cal",
     Params=-0.0002,
     ResampleX=8192,
     PreserveEvents=False,
@@ -135,10 +135,10 @@ ConvertUnits(InputWorkspace=output, OutputWorkspace=output, Target="MomentumTran
 # Save reduced chunk
 run_info = output.getRun()
 run_number = run_info.getProperty("run_number").value
-SaveNexus(InputWorkspace=output, Filename=f"/SNS/POWGEN/IPTS/shared/live_reduced/POWGEN_{run_number}_live.nxs")
+SaveNexus(InputWorkspace=output, Filename=f"/SNS/PG3/IPTS/shared/live_reduced/PG3_{run_number}_live.nxs")
 ```
 
-**Post-processing:** `/SNS/POWGEN/shared/livereduce/reduce_POWGEN_live_post_proc.py`
+**Post-processing:** `/SNS/PG3/shared/livereduce/reduce_PG3_live_post_proc.py`
 
 ```python
 from mantid.simpleapi import SaveAscii, SaveNexus, mtd
@@ -152,14 +152,12 @@ if mtd.doesExist(accum_ws):
     run_number = run_info.getProperty("run_number").value
 
     # Save as NeXus
-    SaveNexus(
-        InputWorkspace=accum_ws, Filename=f"/SNS/POWGEN/IPTS/shared/live_accumulated/POWGEN_{run_number}_accum.nxs"
-    )
+    SaveNexus(InputWorkspace=accum_ws, Filename=f"/SNS/PG3/IPTS/shared/live_accumulated/PG3_{run_number}_accum.nxs")
 
     # Also save ASCII for quick viewing
     SaveAscii(
         InputWorkspace=accum_ws,
-        Filename=f"/SNS/POWGEN/IPTS/shared/live_accumulated/POWGEN_{run_number}_accum.dat",
+        Filename=f"/SNS/PG3/IPTS/shared/live_accumulated/PG3_{run_number}_accum.dat",
         Separator="Space",
     )
 ```
