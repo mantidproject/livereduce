@@ -1,4 +1,4 @@
-# Standard library imports
+import hashlib
 import json
 import logging
 import os
@@ -8,18 +8,18 @@ import sys
 import threading
 import time
 
-# Third-party imports
 import mantid  # for clearer error message
 import psutil
 from mantid.kernel import InstrumentInfo
-from mantid.simpleapi import StartLiveData, mtd
+from mantid.simpleapi import mtd
 from mantid.utils.logging import log_to_python as mtd_log_to_python
 
 CONVERSION_FACTOR_BYTES_TO_MB = 1.0 / (1024 * 1024)
 
-# ##################
-# configure logging
-# ##################
+#####################
+# Configure logging #
+#####################
+
 LOG_NAME = "livereduce"  # constant for logging
 LOG_FILE = "/var/log/SNS_applications/livereduce.log"
 
@@ -53,8 +53,17 @@ logger = logging.getLogger(LOG_NAME)
 logger.info("logging started by user '" + os.environ["USER"] + "'")
 logger.info(f"using python interpreter {sys.executable}")
 
+# where the resolved processing-script paths are published for livereduce_filewatch.sh,
+# which can't resolve them itself (it would need mantid).
+# /var/lib/livereduce is created and owned by snsdata through StateDirectory= in livereduce.service
+if os.environ["USER"] == "snsdata":
+    FILEWATCH_JSON = "/var/lib/livereduce/livereduce_filewatch.json"
+else:
+    FILEWATCH_JSON = "livereduce_filewatch.json"
+FILEWATCH_JSON = os.environ.get("LIVEREDUCE_FILEWATCH_JSON", FILEWATCH_JSON)
 
-# ##################
+
+####################
 class LiveDataManager:
     """class for handling ``StartLiveData`` and ``MonitorLiveData``"""
 
@@ -69,6 +78,8 @@ class LiveDataManager:
         self.config = config
 
     def start(self):
+        from mantid.simpleapi import StartLiveData  # noqa: PLC0415
+
         with self._lock:
             mtd_log_to_python("information")
 
@@ -112,30 +123,34 @@ class LiveDataManager:
             self.start()
 
 
-# ##################
-# register a signal handler so we can exit gracefully if someone kills us
-# ##################
-# signal.SIGHUP - hangup does nothing
-# signal.SIGSTOP - doesn't want to register
-# signal.SIGKILL - doesn't want to register
-sig_name = {signal.SIGINT: "SIGINT", signal.SIGQUIT: "SIGQUIT", signal.SIGTERM: "SIGTERM"}
+####################
+# Register a signal handler so we can exit gracefully if someone kills us
+####################
 
-# the signal handler hands the signal to the main loop, which does the actual shutdown.
+sig_name = {
+    signal.SIGHUP: "SIGHUP",
+    signal.SIGINT: "SIGINT",
+    signal.SIGQUIT: "SIGQUIT",
+    signal.SIGTERM: "SIGTERM",
+}
+
+# the signal handler hands the signal to the main loop, which does the actual shutdown or reload.
 # SimpleQueue.put is safe to call from a signal handler
 shutdown_requested = queue.SimpleQueue()
 
 
 def sigterm_handler(sig_received, frame):  # noqa: ARG001
-    """Record the signal and let the main loop shut things down"""
+    """Record the signal and let the main loop act on it"""
     shutdown_requested.put(sig_received)
 
 
 for signal_event in sig_name.keys():
     logger.debug("registering " + str(signal_event))
     signal.signal(signal_event, sigterm_handler)
-####################
-# end of signal handling
-####################
+
+##########################
+# End of signal handling #
+##########################
 
 
 ####################
@@ -152,12 +167,16 @@ class Config:
         self.logger = logging.getLogger(LOG_NAME + ".Config")
 
         # read file from json into a dict
-        self.filename = None
+        # md5 and size are of the contents actually read, published for livereduce_filewatch.sh
+        self.filename = self.config_md5 = self.config_filesize = None
         if filename is not None and os.path.exists(filename) and os.path.getsize(filename) > 0:
             self.filename = os.path.abspath(filename)
             self.logger.info(f"Loading configuration from '{filename}'")
-            with open(filename) as handle:
-                json_doc = json.load(handle)
+            with open(filename, "rb") as handle:
+                contents = handle.read()
+            self.config_md5 = hashlib.md5(contents, usedforsecurity=False).hexdigest()
+            self.config_filesize = len(contents)
+            json_doc = json.loads(contents)
             logger.debug(json.dumps(json_doc))
         else:
             self.logger.info("Using default configuration")
@@ -213,8 +232,9 @@ class Config:
 
         self.script_dir = str(self.script_dir)
 
-        self.__determineScriptNames()
-        self.logger.info(f"bottom of Config.__init__({filename})")
+        # determine script names, validate them, and write the json for livereduce_filewatch.sh
+        self.refresh_scripts()
+        self.logger.info(f"End of Config.__init__({filename})")
 
     def __getSetInstrument(self, instrument: str) -> InstrumentInfo:
         """
@@ -280,12 +300,22 @@ class Config:
             msg += str(allowed)
             raise ValueError(msg)
 
-    def __determineScriptNames(self):
-        filenameStart = f"reduce_{self.instrument.shortName()!s}_live"
+    def refresh_scripts(self):
+        r"""Re-check which processing scripts exist, for when they change after startup"""
+        self.determine_script_names()
+        self.validate_scripts()
+        self.write_md5_json()
 
+    def determine_script_names(self):
+        if self.script_dir is None:
+            raise RuntimeError("script_dir has not been set")
+        filenameStart = f"reduce_{self.instrument.shortName()!s}_live"
+        self.procScript = os.path.join(self.script_dir, f"{filenameStart}_proc.py")
+        self.postProcScript = os.path.join(self.script_dir, f"{filenameStart}_post_proc.py")
+
+    def validate_scripts(self):
+        """Assert that scripts exist and are not empty."""
         # script for processing each chunk
-        self.procScript = filenameStart + "_proc.py"
-        self.procScript = os.path.join(self.script_dir, self.procScript)
         self.procScriptExist = os.path.exists(self.procScript)
 
         if self.procScriptExist and os.path.getsize(self.procScript) <= 0:
@@ -293,8 +323,6 @@ class Config:
             raise RuntimeError(msg)
 
         # script for processing accumulation
-        self.postProcScript = filenameStart + "_post_proc.py"
-        self.postProcScript = os.path.join(self.script_dir, self.postProcScript)
         self.postProcScriptExist = os.path.exists(self.postProcScript)
 
         if self.postProcScriptExist and os.path.getsize(self.postProcScript) <= 0:
@@ -305,6 +333,41 @@ class Config:
         if not self.procScriptExist and not self.postProcScriptExist:
             msg = f"Must provide at least one of '{self.procScript}' and/or '{self.postProcScript}'"
             raise RuntimeError(msg)
+
+    def write_md5_json(self):
+        """Write a json file containing the config and script files, along with their size in bytes and md5.
+
+        This is used by livereduce_filewatch.sh to determine if the config or scripts have changed since the last run.
+        """
+
+        def _md5(filename):  # None for a missing or empty file, which livereduce treats as absent
+            if not os.path.isfile(filename) or os.path.getsize(filename) == 0:
+                return None
+            with open(filename, "rb") as handle:
+                return hashlib.md5(handle.read(), usedforsecurity=False).hexdigest()
+
+        data = {
+            "config_file": self.filename,
+            "config_filesize": self.config_filesize,  # None, like the rest, when using the default configuration
+            "config_md5": self.config_md5,
+        }
+
+        if self.procScriptExist:
+            data["proc_script"] = self.procScript
+            data["proc_filesize"] = os.path.getsize(self.procScript)
+            data["proc_md5"] = _md5(self.procScript)
+
+        if self.postProcScriptExist:
+            data["post_proc_script"] = self.postProcScript
+            data["post_proc_filesize"] = os.path.getsize(self.postProcScript)
+            data["post_proc_md5"] = _md5(self.postProcScript)
+
+        try:
+            with open(FILEWATCH_JSON + ".tmp", "w") as handle:
+                json.dump(data, handle, indent=2)
+            os.replace(FILEWATCH_JSON + ".tmp", FILEWATCH_JSON)
+        except OSError as exc:
+            self.logger.warning(f"could not publish processing script paths to '{FILEWATCH_JSON}': {exc}")
 
     def toStartLiveArgs(self):
         self.__validateStartLiveDataProps()
@@ -371,30 +434,39 @@ def memory_checker(config, livemanager):
 config = ["/etc/livereduce.conf"]
 if len(sys.argv) > 1:
     config.insert(0, sys.argv[1])
+config_candidates = config
 config = [filename for filename in config if os.path.exists(filename) and os.path.getsize(filename) > 0]
+if len(sys.argv) > 1 and sys.argv[1] not in config:
+    logger.warning(f"Configuration file '{sys.argv[1]}' is missing or empty")
 if len(config) > 0:
     config = config[0]
 else:
+    logger.warning(f"No configuration found in {config_candidates} - using the defaults")
     config = None
 
 # convert configuration from filename to object and print it out
 config = Config(config)
 logger.info("Configuration options: " + config.toJson(sort_keys=True, indent=2))
 
+
 # thing controlling the actual work
 liveDataMgr = LiveDataManager(config)
 
+
 # start up the live data
 liveDataMgr.start()
+
 
 # start the memory checker
 if config.system_mem_limit_perc > 0:
     memory_thread = threading.Thread(target=memory_checker, args=(config, liveDataMgr), daemon=True)
     memory_thread.start()
 
+
 # keep the program running until a signal asks us to stop
 signal_received = shutdown_requested.get()
-logger.info(f"received {sig_name[signal_received]}({signal_received})")
+logger.info(f"Received {sig_name[signal_received]}({signal_received})")
+
 
 # cleanup - done here rather than in the signal handler so mantid can shut down cleanly
 try:
@@ -402,6 +474,7 @@ try:
 except RuntimeError as ex:
     logger.error(ex)
 
+
 if signal_received == signal.SIGQUIT:
-    raise RuntimeError(f"received {sig_name[signal_received]}({signal_received})")
+    raise RuntimeError(f"Received {sig_name[signal_received]}({signal_received})")
 sys.exit(0)
