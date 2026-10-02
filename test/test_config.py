@@ -82,7 +82,7 @@ def run_refresh_scripts(config, output_name):
     print(json.dumps(data, indent=2))
 
     assert data["config_file"] == config.filename
-    assert data["config_filesize"] == os.path.getsize(config.filename)
+    assert data["config_filesize"] == config.config_filesize
     assert data["config_md5"] == config.config_md5
     return data
 
@@ -115,6 +115,19 @@ def test_refresh_scripts_post_proc_only():
     assert data["post_proc_md5"] is not None
 
 
+def test_refresh_scripts_default_config():
+    config = make_config("default_config", [PROC_SCRIPT])
+    # as if no config file had been found, which livereduce.py allows
+    config.filename = config.config_md5 = config.config_filesize = None
+    data = run_refresh_scripts(config, "default_config.json")
+
+    assert data["config_file"] is None
+    assert data["config_filesize"] is None
+    assert data["config_md5"] is None
+    assert data["proc_script"] == config.procScript
+
+
 if __name__ == "__main__":
     test_refresh_scripts()
     test_refresh_scripts_post_proc_only()
+    test_refresh_scripts_default_config()

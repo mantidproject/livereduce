@@ -55,8 +55,9 @@ logger.info(f"using python interpreter {sys.executable}")
 
 # where the resolved processing-script paths are published for livereduce_filewatch.sh,
 # which can't resolve them itself (it would need mantid).
+# /var/lib/livereduce is created and owned by snsdata through StateDirectory= in livereduce.service
 if os.environ["USER"] == "snsdata":
-    FILEWATCH_JSON = "/etc/livereduce_filewatch.json"
+    FILEWATCH_JSON = "/var/lib/livereduce/livereduce_filewatch.json"
 else:
     FILEWATCH_JSON = "livereduce_filewatch.json"
 FILEWATCH_JSON = os.environ.get("LIVEREDUCE_FILEWATCH_JSON", FILEWATCH_JSON)
@@ -166,14 +167,15 @@ class Config:
         self.logger = logging.getLogger(LOG_NAME + ".Config")
 
         # read file from json into a dict
-        self.filename = None
-        self.config_md5 = None  # of the contents actually read, published for livereduce_filewatch.sh
+        # md5 and size are of the contents actually read, published for livereduce_filewatch.sh
+        self.filename = self.config_md5 = self.config_filesize = None
         if filename is not None and os.path.exists(filename) and os.path.getsize(filename) > 0:
             self.filename = os.path.abspath(filename)
             self.logger.info(f"Loading configuration from '{filename}'")
             with open(filename, "rb") as handle:
                 contents = handle.read()
             self.config_md5 = hashlib.md5(contents, usedforsecurity=False).hexdigest()
+            self.config_filesize = len(contents)
             json_doc = json.loads(contents)
             logger.debug(json.dumps(json_doc))
         else:
@@ -230,8 +232,9 @@ class Config:
 
         self.script_dir = str(self.script_dir)
 
-        self.determine_script_names()
-        self.logger.info(f"bottom of Config.__init__({filename})")
+        # determine script names, validate them, and write the json for livereduce_filewatch.sh
+        self.refresh_scripts()
+        self.logger.info(f"End of Config.__init__({filename})")
 
     def __getSetInstrument(self, instrument: str) -> InstrumentInfo:
         """
@@ -345,7 +348,7 @@ class Config:
 
         data = {
             "config_file": self.filename,
-            "config_filesize": os.path.getsize(self.filename),
+            "config_filesize": self.config_filesize,  # None, like the rest, when using the default configuration
             "config_md5": self.config_md5,
         }
 
@@ -431,10 +434,14 @@ def memory_checker(config, livemanager):
 config = ["/etc/livereduce.conf"]
 if len(sys.argv) > 1:
     config.insert(0, sys.argv[1])
+config_candidates = config
 config = [filename for filename in config if os.path.exists(filename) and os.path.getsize(filename) > 0]
+if len(sys.argv) > 1 and sys.argv[1] not in config:
+    logger.warning(f"Configuration file '{sys.argv[1]}' is missing or empty")
 if len(config) > 0:
     config = config[0]
 else:
+    logger.warning(f"No configuration found in {config_candidates} - using the defaults")
     config = None
 
 # convert configuration from filename to object and print it out
