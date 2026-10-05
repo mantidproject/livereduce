@@ -82,7 +82,7 @@ def run_refresh_scripts(config, output_name):
     print(json.dumps(data, indent=2))
 
     assert data["config_file"] == config.filename
-    assert data["config_filesize"] == config.config_filesize
+    assert data["config_size_bytes"] == config.config_size_bytes
     assert data["config_md5"] == config.config_md5
     return data
 
@@ -97,10 +97,10 @@ def test_refresh_scripts():
     data = run_refresh_scripts(config, "both_scripts.json")
 
     assert data["proc_script"] == config.procScript
-    assert data["proc_filesize"] == PROC_SCRIPT.stat().st_size
+    assert data["proc_size_bytes"] == PROC_SCRIPT.stat().st_size
     assert data["proc_md5"] is not None
     assert data["post_proc_script"] == config.postProcScript
-    assert data["post_proc_filesize"] == POST_PROC_SCRIPT.stat().st_size
+    assert data["post_proc_size_bytes"] == POST_PROC_SCRIPT.stat().st_size
     assert data["post_proc_md5"] is not None
 
 
@@ -109,20 +109,20 @@ def test_refresh_scripts_post_proc_only():
     data = run_refresh_scripts(config, "post_proc_only.json")
 
     # a missing script is left out of the json entirely
-    assert not {"proc_script", "proc_filesize", "proc_md5"} & data.keys()
+    assert not {"proc_script", "proc_size_bytes", "proc_md5"} & data.keys()
     assert data["post_proc_script"] == config.postProcScript
-    assert data["post_proc_filesize"] == POST_PROC_SCRIPT.stat().st_size
+    assert data["post_proc_size_bytes"] == POST_PROC_SCRIPT.stat().st_size
     assert data["post_proc_md5"] is not None
 
 
 def test_refresh_scripts_default_config():
     config = make_config("default_config", [PROC_SCRIPT])
     # as if no config file had been found, which livereduce.py allows
-    config.filename = config.config_md5 = config.config_filesize = None
+    config.filename = config.config_md5 = config.config_size_bytes = None
     data = run_refresh_scripts(config, "default_config.json")
 
     assert data["config_file"] is None
-    assert data["config_filesize"] is None
+    assert data["config_size_bytes"] is None
     assert data["config_md5"] is None
     assert data["proc_script"] == config.procScript
 

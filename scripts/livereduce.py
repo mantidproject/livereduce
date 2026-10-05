@@ -168,14 +168,14 @@ class Config:
 
         # read file from json into a dict
         # md5 and size are of the contents actually read, published for livereduce_filewatch.sh
-        self.filename = self.config_md5 = self.config_filesize = None
+        self.filename = self.config_md5 = self.config_size_bytes = None
         if filename is not None and os.path.exists(filename) and os.path.getsize(filename) > 0:
             self.filename = os.path.abspath(filename)
             self.logger.info(f"Loading configuration from '{filename}'")
             with open(filename, "rb") as handle:
                 contents = handle.read()
             self.config_md5 = hashlib.md5(contents, usedforsecurity=False).hexdigest()
-            self.config_filesize = len(contents)
+            self.config_size_bytes = len(contents)
             json_doc = json.loads(contents)
             logger.debug(json.dumps(json_doc))
         else:
@@ -348,18 +348,18 @@ class Config:
 
         data = {
             "config_file": self.filename,
-            "config_filesize": self.config_filesize,  # None, like the rest, when using the default configuration
+            "config_size_bytes": self.config_size_bytes,  # None, like the rest, when using the default configuration
             "config_md5": self.config_md5,
         }
 
         if self.procScriptExist:
             data["proc_script"] = self.procScript
-            data["proc_filesize"] = os.path.getsize(self.procScript)
+            data["proc_size_bytes"] = os.path.getsize(self.procScript)
             data["proc_md5"] = _md5(self.procScript)
 
         if self.postProcScriptExist:
             data["post_proc_script"] = self.postProcScript
-            data["post_proc_filesize"] = os.path.getsize(self.postProcScript)
+            data["post_proc_size_bytes"] = os.path.getsize(self.postProcScript)
             data["post_proc_md5"] = _md5(self.postProcScript)
 
         try:
