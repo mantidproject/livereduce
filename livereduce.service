@@ -6,6 +6,7 @@ StartLimitBurst=1000
 [Service]
 WorkingDirectory=/tmp
 User=snsdata
+StateDirectory=livereduce
 ExecStart=/usr/bin/livereduce.sh
 Restart=always
 RestartSec=10
