@@ -18,7 +18,7 @@ jobs:
       - name: Run RPM spec quick check
         run: ./test/rpm/quick_check.sh
 
-  bash-tests:
+  bash-python-tests:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
