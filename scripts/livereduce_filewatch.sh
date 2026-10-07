@@ -16,13 +16,6 @@
 echo "Starting livereduce_filewatch.sh"
 echo "ARGS: $*"
 
-# Determine the configuration file
-if [ $# -ge 1 ]; then
-    CONFIG_FILE="${1}"
-else
-    CONFIG_FILE=/etc/livereduce.conf
-fi
-
 # Written by livereduce.py (see FILEWATCH_JSON in scripts/livereduce.py)
 JSON_FILE="${LIVEREDUCE_FILEWATCH_JSON:-/var/lib/livereduce/livereduce_filewatch.json}"
 

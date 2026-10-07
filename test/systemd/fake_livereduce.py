@@ -1,7 +1,7 @@
 """Stand-in for scripts/livereduce.py with only what livereduce_filewatch.sh relies on: at startup it writes
 its pid and the config and script paths, with their sizes and md5s, to /var/lib/livereduce/livereduce_filewatch.json,
-as Config.write_md5_json does. SIGTERM (sent by the watcher to that pid) exits cleanly. Each event is logged with the pid
-so the test can tell a restart happened."""
+as Config.write_md5_json does. SIGTERM (sent by the watcher to that pid) exits cleanly.
+Each event is logged with the pid so the test can tell a restart happened."""
 
 import hashlib
 import json
