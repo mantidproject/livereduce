@@ -33,9 +33,8 @@ Requires: systemd
 %description
 Daemon for running the algorithm StartLiveData. Also provides the optional livereduce_filewatch
 service, which watches /etc/livereduce.conf and the processing/post-processing scripts, since
-livereduce itself only reads them at startup. When a script's content changes, livereduce reloads
-it in place (SIGHUP). When the configuration changes, livereduce exits and systemd restarts it
-with the new configuration (SIGTERM).
+livereduce itself only reads them at startup. When the content of any of them changes, livereduce
+is sent SIGTERM, exits cleanly, and systemd restarts it with the new configuration and scripts.
 
 %{?python_provide:%python_provide python%{python3_pkgversion}-%{srcname}}
 

@@ -206,9 +206,9 @@ scp reduce_INSTR_live_post_proc.py snsdata@beamline-server:/SNS/INSTR/shared/liv
 
 **3. Automatic detection or restart**:
 With `livereduce_filewatch` running, the file watcher uses inotify to watch for file changes:
-- Script modified (md5sum changed): Reloads the scripts and restarts processing automatically
-- Script deleted: Reloads without that script
-- Script created: Reloads with new script
+- Script modified (size or md5sum changed): restarts the daemon, which loads the new script
+- Script deleted: restarts the daemon, which runs without that script
+- Script created: **not** detected if it didn't exist when the daemon started; restart the service
 
 Without it, adding, modifying or deleting a script has no effect until the service is restarted:
 ```bash
@@ -223,11 +223,10 @@ sudo journalctl -u livereduce -n 50
 
 # With the file watcher, check it saw the change:
 tail /var/log/SNS_applications/livereduce_filewatch.log
-# "Processing script '/path/to/script' changed (CLOSE_WRITE,CLOSE)"
-# "sent SIGHUP to livereduce.py"
+# "MD5 sum changed for /path/to/script (old: ..., new: ...)"
+# "sent SIGTERM to livereduce.py (pid 12345)"
 
-# Look for the scripts the daemon loaded:
-# "Reloading processing scripts" (file watcher only)
+# Look for the scripts the restarted daemon loaded:
 # "Using ProcessingScriptFilename '/path/to/script'"
 # "Using PostProcessingScriptFilename '/path/to/script'"
 ```
@@ -380,15 +379,18 @@ changes to the running daemon. See [Service Behavior](#service-behavior) for the
 
 ### How It Works
 
-1. Reads the configuration and script paths the daemon publishes in `/run/livereduce/scripts.json`,
-   with the md5sum of each file as the daemon loaded it
-2. Watches those files with `inotifywait`; a symlinked file is also watched through its target
-3. Waits until events stop for a second, so a save made of several steps (e.g. vim renaming the old
-   file away first) acts once on the finished file
-4. Compares md5sums with what the daemon loaded, ignoring events that change nothing, such as a bare `touch`.
-   This also catches changes made before the watcher started
-5. Script changed: sends `SIGHUP`, and the daemon reloads the scripts in the same process
-6. Configuration changed: sends `SIGTERM`, and systemd restarts the daemon with the new configuration
+1. Reads what the daemon writes to `/var/lib/livereduce/livereduce_filewatch.json` at startup: its pid, and the
+   path, size and md5sum of the configuration file and each script as the daemon loaded them
+2. Watches the directories holding those files with `inotifywait`, so saves that rename a new file
+   into place (as editors and `git checkout` do) are seen. Symlinks aren't followed: editing the
+   file a symlink points to isn't seen
+3. On an event for one of the files, compares its size, then its md5sum, with what the daemon loaded,
+   ignoring events that change nothing, such as a bare `touch`. This also catches changes made
+   before the watcher started
+4. Changed: sends `SIGTERM` to the daemon's pid, after checking it is still `livereduce.py`. The
+   daemon stops cleanly and systemd restarts it with the new configuration and scripts
+5. Ignores further changes until the restarted daemon rewrites the json, then checks every file again
+6. If the restarted daemon published different paths, exits so systemd restarts it to watch them
 
 ### Managing File Watcher
 
@@ -412,7 +414,7 @@ systemctl status livereduce_filewatch
 # View file watcher log - one entry per change acted on
 tail -f /var/log/SNS_applications/livereduce_filewatch.log
 
-# File watcher journal - which files are being watched, plus a copy of each log entry
+# File watcher journal - startup messages, plus a copy of each log entry
 sudo journalctl -u livereduce_filewatch -f
 ```
 
@@ -425,12 +427,11 @@ broken log never stops a change being applied.
 **Enable for**:
 - Frequent script updates
 - Deploying scripts unattended, e.g. from version control
-- Reloading scripts without restarting the daemon
 
 **Disable for**:
-- Editing scripts in several steps, where each save would reload
+- Editing scripts in several steps, where each save would restart the daemon
 - Controlling exactly when changes take effect
-- Investigating why reloads or restarts happen
+- Investigating why restarts happen
 
 ## Production Checklist
 
@@ -453,24 +454,24 @@ Before deploying to production:
 
 The daemon reads the configuration file and processing scripts only at startup. Changes are
 detected by the separate `livereduce_filewatch` service (installed with `python-livereduce`),
-which uses `inotifywait` and compares md5sums so that only real content changes act. It signals
-the daemon directly rather than going through `systemctl`, since both run as `snsdata`.
+which uses `inotifywait` and compares sizes and md5sums so that only real content changes act.
+It signals the daemon directly rather than going through `systemctl`, since both run as `snsdata`,
+so no polkit rule is needed for it.
 
 The script paths depend on mantid's short instrument name (e.g. `POWGEN` becomes `PG3`), so the
-file watcher doesn't work them out itself. Whenever the daemon resolves them (at startup and on
-every reload) it writes them to `/run/livereduce/scripts.json`, along with the configuration file it
-read and the md5sum of each file as loaded, and the file watcher watches the files named there.
-Starting from those md5sums rather than the files on disk means an edit made while the file watcher
-was restarting is still acted on. `/run/livereduce` is created by `livereduce.service` and kept until reboot.
+file watcher doesn't work them out itself. At startup the daemon writes them to
+`/var/lib/livereduce/livereduce_filewatch.json`, along with its pid, the configuration file it read, and the
+size and md5sum of each file as loaded, and the file watcher watches the files named there.
+Starting from those values rather than the files on disk means an edit made while the file watcher
+was restarting is still acted on. A script that doesn't exist is left out, so creating it later
+needs a manual restart. `/var/lib/livereduce` is created by `livereduce.service` (`StateDirectory=`).
 
-When one of the processing scripts is changed, added, or removed, the file watcher sends `SIGHUP`.
-The daemon then cancels [StartLiveData](https://docs.mantidproject.org/nightly/algorithms/StartLiveData-v1.html) and [MonitorLiveData](https://docs.mantidproject.org/nightly/algorithms/MonitorLiveData-v1.html),
-clears its workspaces, and restarts them in the same process. This is to be resilient against
-changes in the scripts. If the reload fails (e.g. neither script exists any more), the daemon
-exits with an error and systemd restarts it.
-
-When the configuration file is changed, the file watcher sends `SIGTERM`, so the process exits and
-systemd restarts it. This is done in case the version of mantid wanted is changed. If the
+When the configuration file or one of the processing scripts is changed or removed, the file
+watcher sends `SIGTERM` to the pid in that file, after checking it still belongs to `livereduce.py`
+(the service's main process is the `livereduce.sh` wrapper, so `systemctl`'s pid wouldn't do). The
+daemon stops [MonitorLiveData](https://docs.mantidproject.org/nightly/algorithms/MonitorLiveData-v1.html)
+cleanly and exits, and `Restart=always` starts it again after 10 seconds with the new files. A
+restart rather than a reload in place also covers a change to the version of mantid wanted. If the
 restarted daemon publishes different script paths, the file watcher exits too, and systemd
 restarts it so it watches the new files.
 

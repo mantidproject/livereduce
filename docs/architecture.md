@@ -15,7 +15,7 @@ flowchart TD
     PostScript["Post-Processing Script<br/>(post_proc.py)<br/>Runs on accumulated data at intervals"]
     Daemon["livereduce Daemon<br/>Manages the entire workflow,<br/>watches memory usage, handles restarts"]
     Watchdog["livereduce_watchdog<br/>Monitors the daemon's log file and restarts it if unresponsive"]
-    FileWatch["livereduce_filewatch<br/>Watches the configuration and processing scripts,<br/>signals the daemon to reload or restart"]
+    FileWatch["livereduce_filewatch<br/>Watches the configuration and processing scripts,<br/>restarts the daemon when they change"]
 
     DAS --> Listener
     Listener --> Mantid
@@ -66,8 +66,7 @@ flowchart TD
 **livereduce_filewatch**
 - Optional, independent service
 - Detects script changes via inotify file watching, comparing md5sums
-- Script changed: reloads the scripts inside the running daemon
-- Configuration changed: the daemon exits and systemd restarts it
+- Script or configuration changed: sends the daemon `SIGTERM`, it exits cleanly, and systemd restarts it
 
 ## Data Flow
 
