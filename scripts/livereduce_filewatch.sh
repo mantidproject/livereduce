@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ##########################################################################################################
-# When the livereduce service starts, `livereduce.py` runs in the background and generates 
+# When the livereduce service starts, `livereduce.py` runs in the background and generates
 # `/var/lib/livereduce/livereduce_filewatch.json`, which contains:
 # the filepath, md5 sum, and file size of the config file, proc script, and postproc script.
 # This script reads that file and runs `inotifywait` to watch for changes to those files.

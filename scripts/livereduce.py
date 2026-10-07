@@ -129,6 +129,7 @@ class LiveDataManager:
             self.config.refreshScripts()
             self.restart_and_clear()
 
+
 ####################
 # Register a signal handler so we can exit gracefully if someone kills us
 ####################
