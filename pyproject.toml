@@ -4,7 +4,10 @@ description = "Daemon for running live data reduction with systemd"
 version = "1.24"
 requires-python = ">=3.9"
 license = { text = "MIT License" }
-authors = [{name="Pete Peterson",email="petersonpf@ornl.gov"}]
+authors = [
+  { name = "Pete Peterson", email = "petersonpf@ornl.gov" },
+  { name = "Glass Elsarboukh", email = "glass.ships@protonmail.com" },
+]
 
 [project.urls]
 Homepage = "https://github.com/mantidproject/livereduce"
@@ -23,9 +26,7 @@ platforms = ["linux-64"]
 preview = ["pixi-build"]
 
 [tool.pixi.environments]
-default = { features = [
-  "test",
-], solve-group = "default" }
+default = { features = ["test"], solve-group = "default" }
 
 [tool.pixi.package.build]
 backend = { name = "pixi-build-python", version = "0.1.*" }
@@ -43,6 +44,8 @@ livereduce = { path = ".", editable = true }
 [tool.pixi.feature.test.dependencies]
 bats-core = "*"
 inotify-tools = ">=3.20.2,<4"
+pytest = "*"
+ruff = "*"
 
 [tool.pixi.tasks]
 build = "hatchling build -t sdist"
@@ -111,15 +114,17 @@ bash -ec '
   CID=$(docker run --detach --privileged livereduce-rpm:local)
   trap "docker rm --force $CID >/dev/null" EXIT
   docker exec "$CID" systemctl is-system-running --wait >/dev/null || true
-  docker exec "$CID" bash -ec '
+  # double quotes: a single quote here would end the outer script. The glob is expanded by the container shell
+  docker exec "$CID" bash -ec "
     rpm -ivh --nodeps /home/builder/rpmbuild/RPMS/noarch/*.rpm
     cp /usr/local/share/livereduce-test/livereduce.py /usr/bin/livereduce.py
-  '
+  "
   docker exec "$CID" /usr/local/bin/check_restarts.sh
 '
 """
 depends-on = ["rpm-build"]
 
 [tool.pixi.feature.test.tasks]
-test-bash = "bats test/test_livereduce.bats"
-test-filewatch = "bash test/test-filewatch.sh"
+test-bats = "bats test/test_livereduce.bats"
+test-python = "pytest test/"
+test-filewatch = "bash test/test_filewatch.sh"

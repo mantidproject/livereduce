@@ -6,12 +6,12 @@ StartLimitBurst=1000
 [Service]
 WorkingDirectory=/tmp
 User=snsdata
+StateDirectory=livereduce
 ExecStart=/usr/bin/livereduce.sh
 Restart=always
 RestartSec=10
 # /run/livereduce, where livereduce.py publishes its resolved script paths for livereduce_filewatch.sh.
 # Kept across restarts so the watcher can still read it while livereduce is down; cleared on reboot
-RuntimeDirectory=livereduce
 RuntimeDirectoryPreserve=yes
 
 [Install]

@@ -1,5 +1,7 @@
 #!/bin/bash
-# Checks how livereduce_filewatch.service drives livereduce.service under real systemd.
+# Checks how livereduce_filewatch.service drives livereduce.service under real systemd: a change to the
+# config or a processing script restarts livereduce (SIGTERM to the pid it published, then Restart=always), and a change
+# of the published paths restarts the watcher too.
 # Runs as root inside the container built from the root Dockerfile (see `pixi run test-systemd`).
 set -u
 
@@ -8,8 +10,9 @@ CONFIG_FILE="/etc/livereduce.conf"
 SCRIPTS_A="/srv/livereduce/scripts_a"
 SCRIPTS_B="/srv/livereduce/scripts_b"
 PROC_SCRIPT="reduce_TEST_live_proc.py"
-# use the watcher's own pattern, so this finds exactly the process it signals
-PATTERN="$(sed -n "s/^LIVEREDUCE_PATTERN='\(.*\)'$/\1/p" /usr/bin/livereduce_filewatch.sh)"
+FILEWATCH_JSON="/var/lib/livereduce/livereduce_filewatch.json" # written by fake_livereduce.py
+# only the python process running livereduce.py - not the livereduce.sh wrapper whose command line also mentions it
+PATTERN='^[^ ]*python[0-9.]* [^ ]*livereduce\.py( |$)'
 
 FAILURES=0
 pass() { echo "PASS: $1"; }
@@ -45,6 +48,16 @@ daemon_restarted() {
 }
 watcher_started() { [ "$(watcher_journal_count 'Watches established')" -ge 1 ]; }
 watcher_reloaded() { [ "$(watcher_journal_count 'Watches established')" -ge 2 ]; }
+published_md5() { /bin/jq --raw-output ".${1}_md5" "${FILEWATCH_JSON}"; }
+published_current() { # published_current proc|config file
+    [ "$(published_md5 "${1}")" = "$(md5sum "${2}" | cut -d' ' -f1)" ]
+}
+# waits for livereduce.py to be killed and restarted by systemd, then moves P1 to the new pid
+expect_restart() { # expect_restart "what changed"
+    check "${1}: livereduce.py received SIGTERM" wait_for 10 logged "SIGTERM pid=${P1}"
+    check "${1}: systemd restarted livereduce.py" wait_for 30 daemon_restarted
+    P1="$(daemon_pid)"
+}
 
 write_config() { # write_config script_dir [update_every] - replace via rename, as editors and config management do
     echo "{\"instrument\": \"TEST\", \"script_dir\": \"${1}\", \"update_every\": ${2:-30}}" >"${CONFIG_FILE}.tmp"
@@ -71,53 +84,53 @@ wait_for 30 watcher_started || {
 }
 
 P1="$(daemon_pid)"
-M1="$(main_pid livereduce.service)"
 check "livereduce.py runs as snsdata" test "$(ps -o user= -p "${P1}")" = snsdata
-# the reason the watcher signals by pattern rather than through systemd's MainPID
-check "livereduce.sh wrapper, not python, is the service's main process" test "${M1}" != "${P1}"
+check "livereduce.py published its own pid" test "$(/bin/jq .pid "${FILEWATCH_JSON}")" = "${P1}"
 
 ###########################################################################
 echo "== touching a script without changing it"
 touch "${SCRIPTS_A}/${PROC_SCRIPT}"
 sleep 3
-check "no SIGHUP sent" not_logged "SIGHUP"
+check "livereduce.py was not killed" not_logged "SIGTERM"
 
 ###########################################################################
 echo "== editing a script"
+W1="$(main_pid livereduce_filewatch.service)"
 echo "# v2" >>"${SCRIPTS_A}/${PROC_SCRIPT}"
-check "livereduce.py received SIGHUP" wait_for 10 logged "SIGHUP pid=${P1}"
-check "livereduce.py reloaded in place (same pid)" test "$(daemon_pid)" = "${P1}"
-check "livereduce.service was not restarted" test "$(main_pid livereduce.service)" = "${M1}"
+expect_restart "script edit"
+check "restarted livereduce.py published the new md5" wait_for 10 published_current proc "${SCRIPTS_A}/${PROC_SCRIPT}"
+check "watcher kept running, since the paths are unchanged" test "$(main_pid livereduce_filewatch.service)" = "${W1}"
+
+###########################################################################
+echo "== editing the script again after the restart"
+sleep 3 # let the watcher re-read the json
+echo "# v3" >>"${SCRIPTS_A}/${PROC_SCRIPT}"
+expect_restart "second script edit"
 
 ###########################################################################
 echo "== changing the configuration without moving the scripts"
-W1="$(main_pid livereduce_filewatch.service)"
-write_config "${SCRIPTS_A}" 5
-check "livereduce.py received SIGTERM" wait_for 10 logged "SIGTERM pid=${P1}"
-check "systemd restarted livereduce.py" wait_for 30 daemon_restarted
-check "restarted livereduce.py published its script paths" test -s /run/livereduce/scripts.json
 sleep 3
-check "watcher kept running, since the script paths are unchanged" test "$(main_pid livereduce_filewatch.service)" = "${W1}"
-P1="$(daemon_pid)"
+write_config "${SCRIPTS_A}" 5
+expect_restart "config edit"
+check "restarted livereduce.py published the new config md5" wait_for 10 published_current config "${CONFIG_FILE}"
+sleep 3
+check "watcher kept running, since the paths are unchanged" test "$(main_pid livereduce_filewatch.service)" = "${W1}"
 
 ###########################################################################
 echo "== changing the configuration to point at a different script_dir"
 write_config "${SCRIPTS_B}"
-check "livereduce.py received SIGTERM" wait_for 10 logged "SIGTERM pid=${P1}"
-check "systemd restarted livereduce.py" wait_for 30 daemon_restarted
+expect_restart "config pointing at a new script_dir"
 # livereduce.py restarts after RestartSec, then the watcher sees the new paths and restarts after another
 check "systemd restarted the watcher" wait_for 40 watcher_reloaded
-check "watcher now watches the new script_dir" test "$(watcher_journal_count "${SCRIPTS_B}")" -ge 1
 check "watcher has a new pid" test "$(main_pid livereduce_filewatch.service)" != "${W1}"
-P2="$(daemon_pid)"
 
 ###########################################################################
 echo "== editing scripts in the old and new script_dir"
-echo "# v2" >>"${SCRIPTS_A}/${PROC_SCRIPT}"
+echo "# v4" >>"${SCRIPTS_A}/${PROC_SCRIPT}"
 sleep 3
-check "old script_dir is no longer watched" not_logged "SIGHUP pid=${P2}"
+check "old script_dir is no longer watched" not_logged "SIGTERM pid=${P1}"
 echo "# v2" >>"${SCRIPTS_B}/${PROC_SCRIPT}"
-check "new script_dir triggers SIGHUP" wait_for 10 logged "SIGHUP pid=${P2}"
+expect_restart "script edit in the new script_dir"
 
 ###########################################################################
 echo
