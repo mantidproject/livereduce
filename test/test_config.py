@@ -81,6 +81,7 @@ def run_refresh_scripts(config, output_name):
     shutil.copy(FILEWATCH_JSON, OUTPUT_DIR / output_name)
     print(json.dumps(data, indent=2))
 
+    assert data["pid"] == os.getpid()
     assert data["config_file"] == config.filename
     assert data["config_size_bytes"] == config.config_size_bytes
     assert data["config_md5"] == config.config_md5

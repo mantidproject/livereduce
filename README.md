@@ -77,12 +77,15 @@ LiveReduce executes instrument-specific Python scripts:
 - `reduce_<INSTRUMENT>_live_proc.py` - Processes each data chunk
 - `reduce_<INSTRUMENT>_live_post_proc.py` - Processes accumulated data
 
+`<INSTRUMENT>` is Mantid's short name for the instrument, e.g. `NOM` for `NOMAD` or `PG3` for `POWGEN`.
+
 Example for NOMAD:
 - `/SNS/NOM/shared/livereduce/reduce_NOM_live_proc.py`
 - `/SNS/NOM/shared/livereduce/reduce_NOM_live_post_proc.py`
 
 These scripts, like `/etc/livereduce.conf`, are read when the daemon starts. The daemon does not
-watch them for changes, so restart the service after editing either:
+watch them for changes, so restart the service after editing either, or enable the optional
+[File Watcher Service](#file-watcher-service) to have changes picked up automatically:
 
 ```bash
 sudo systemctl restart livereduce
@@ -109,6 +112,19 @@ Configure in `/etc/livereduce.conf`:
   }
 }
 ```
+
+## File Watcher Service
+
+The optional file watcher service, installed with the main package, watches a live reduction configuration file (or `/etc/livereduce.conf` if no live config is specified) and the processing scripts, and applies changes without a manual restart.
+
+If any of the watched files are modified, the service will restart the main daemon to pick up the changes.
+
+```bash
+sudo systemctl enable livereduce_filewatch
+sudo systemctl start livereduce_filewatch
+```
+
+Only changes to a file's content count, so a bare `touch` does nothing.
 
 ## Acknowledgements
 

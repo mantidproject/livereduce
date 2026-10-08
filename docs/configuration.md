@@ -10,7 +10,7 @@ The configuration file is JSON format:
 {
   "instrument": "POWGEN",
   "CONDA_ENV": "mantid-nightly",
-  "script_dir": "/SNS/POWGEN/shared/livereduce",
+  "script_dir": "/SNS/PG3/shared/livereduce",
   "update_every": 30,
   "preserve_events": false,
   "accum_method": "Add",
@@ -55,9 +55,9 @@ mindmap
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `instrument` | string | From `/etc/mantid.local.properties` | Instrument short name (e.g., "POWGEN") |
+| `instrument` | string | From `/etc/mantid.local.properties` | Instrument name or short name (e.g., "POWGEN" or "PG3") |
 | `CONDA_ENV` | string | `"mantid-dev"` | Conda environment containing Mantid |
-| `script_dir` | string | `/SNS/{instrument}/shared/livereduce` | Directory containing processing scripts |
+| `script_dir` | string | `/SNS/{short name}/shared/livereduce` | Directory containing processing scripts |
 | `update_every` | integer | `30` | Seconds between post-processing runs |
 | `preserve_events` | boolean | `true` | Keep event data after processing (memory intensive) |
 | `accum_method` | string | `"Add"` | How to accumulate chunks: "Add", "Replace", or "Append" |
@@ -76,10 +76,14 @@ mindmap
 **Default**: From `/etc/mantid.local.properties`
 **Required**: No (but strongly recommended)
 
-The instrument short name. Used to:
+The instrument name or short name, as known to Mantid. Used to:
 - Set Mantid's default instrument
-- Determine default `script_dir` location
+- Determine default `script_dir` location and the processing script names
 - Find facility information
+
+The script directory and names use Mantid's short name, whichever form is given here. For example,
+`"POWGEN"` and `"PG3"` both give `/SNS/PG3/shared/livereduce/reduce_PG3_live_proc.py`. Other
+examples: `NOMAD` becomes `NOM`, `SEQUOIA` becomes `SEQ`, `HYSPEC` becomes `HYS`.
 
 **Examples**:
 ```json
@@ -111,16 +115,17 @@ The conda environment containing Mantid. The service wrapper script (`livereduce
 ### script_dir
 
 **Type**: string
-**Default**: `/SNS/{instrument}/shared/livereduce`
+**Default**: `/SNS/{short name}/shared/livereduce`
 **Required**: No
 
-Directory containing processing scripts. Scripts must be named:
-- `reduce_{instrument}_live_proc.py`
-- `reduce_{instrument}_live_post_proc.py`
+Directory containing processing scripts. Scripts must be named with the instrument's short name
+(see [instrument](#instrument)):
+- `reduce_{short name}_live_proc.py`
+- `reduce_{short name}_live_post_proc.py`
 
 **Examples**:
 ```json
-{"script_dir": "/SNS/POWGEN/shared/livereduce"}
+{"script_dir": "/SNS/PG3/shared/livereduce"}
 {"script_dir": "/home/user/test_scripts"}
 {"script_dir": "/custom/location"}
 ```
@@ -379,19 +384,23 @@ If valid, prints formatted JSON. If invalid, shows error.
 
 ### Configuration Reload
 
-The configuration file is read only at startup. Editing it has no effect until the service is
+The configuration file is read only at startup. If the optional `livereduce_filewatch` service is
+running, modifying `/etc/livereduce.conf` causes the service to exit, and systemd automatically
+restarts it with the new configuration. Otherwise, editing it has no effect until the service is
 restarted manually:
 
 ```bash
 # Edit config
 sudoedit /etc/livereduce.conf
 
-# Restart to apply the new configuration
+# Without livereduce_filewatch, restart to apply the new configuration
 sudo systemctl restart livereduce
 
 # Monitor logs
 tail -f /var/log/SNS_applications/livereduce.log
 ```
+
+See [File Watcher Service](developer-guide.md#file-watcher-service) for enabling it.
 
 ## Related Documentation
 

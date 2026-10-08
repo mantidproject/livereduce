@@ -45,3 +45,34 @@ Example using event data, to test memory monitoring
 This test case will continuously accumulate events until it fails.
 
 Start the server using `test/fake_event_server.py` and use the configuration `test/fake_event.conf`.
+
+
+Testing the file watcher
+------------------------
+
+`test/test_filewatch.sh` runs `scripts/livereduce_filewatch.sh` on its own, with a stand-in
+livereduce.py that records the signals it receives, and a json written the way `livereduce.py`
+writes it. It checks which changes send `SIGTERM` and which are ignored, that a stale pid isn't
+signalled, that edits made while livereduce restarts are
+ignored until the json is republished, saves made of several steps, changes made before the watcher
+started, and that the watcher exits when the published paths change.
+Only `inotify-tools`, `jq` and python are needed.
+
+```
+$ pixi run test-filewatch
+```
+
+Testing the file watcher under systemd
+--------------------------------------
+
+`test/systemd/` runs `livereduce.service` and `livereduce_filewatch.service` in a container with
+systemd as PID 1. It checks that editing a processing script or the configuration restarts livereduce
+(`SIGTERM` to the pid it published, then `Restart=always`), and that the watcher also restarts when the script paths
+livereduce publishes change.
+Mantid and nsd-app-wrap aren't needed: `fake_livereduce.py` and `nsd-app-wrap.sh` stand in for them.
+
+```
+$ pixi run test-systemd
+```
+
+This needs Docker and runs the container with `--privileged` so that systemd can start.
