@@ -122,13 +122,6 @@ class LiveDataManager:
             mtd.clear()
             self.start()
 
-    def reload_scripts(self):
-        # refresh under the lock so the memory checker cannot restart with the old script list
-        with self._lock:
-            self.logger.info("Reloading processing scripts")
-            self.config.refreshScripts()
-            self.restart_and_clear()
-
 
 ####################
 # Register a signal handler so we can exit gracefully if someone kills us
@@ -141,7 +134,7 @@ sig_name = {
     signal.SIGTERM: "SIGTERM",
 }
 
-# the signal handler hands the signal to the main loop, which does the actual shutdown or reload.
+# the signal handler hands the signal to the main loop, which does the actual shutdown and reload.
 # SimpleQueue.put is safe to call from a signal handler
 shutdown_requested = queue.SimpleQueue()
 
@@ -151,8 +144,8 @@ def sigterm_handler(sig_received, frame):  # noqa: ARG001
     shutdown_requested.put(sig_received)
 
 
-for signal_event in sig_name.keys():
-    logger.debug("registering " + str(signal_event))
+for signal_event, name in sig_name.items():
+    logger.debug(f"Registering signal: {name}")
     signal.signal(signal_event, sigterm_handler)
 
 ##########################
@@ -184,7 +177,7 @@ class Config:
             self.config_md5 = hashlib.md5(contents, usedforsecurity=False).hexdigest()
             self.config_size_bytes = len(contents)
             json_doc = json.loads(contents)
-            logger.debug(json.dumps(json_doc))
+            self.logger.debug(json.dumps(json_doc))
         else:
             self.logger.info("Using default configuration")
             json_doc = dict()
@@ -475,7 +468,7 @@ if config.system_mem_limit_perc > 0:
 
 # keep the program running until a signal asks us to stop
 signal_received = shutdown_requested.get()
-logger.info(f"Received {sig_name[signal_received]}({signal_received})")
+logger.info(f"Received {sig_name[signal_received]} ({signal_received})")
 
 
 # cleanup - done here rather than in the signal handler so mantid can shut down cleanly
@@ -486,5 +479,5 @@ except RuntimeError as ex:
 
 
 if signal_received == signal.SIGQUIT:
-    raise RuntimeError(f"Received {sig_name[signal_received]}({signal_received})")
+    raise RuntimeError(f"Received {sig_name[signal_received]} ({signal_received})")
 sys.exit(0)

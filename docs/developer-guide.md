@@ -382,8 +382,8 @@ changes to the running daemon. See [Service Behavior](#service-behavior) for the
 1. Reads what the daemon writes to `/var/lib/livereduce/livereduce_filewatch.json` at startup: its pid, and the
    path, size and md5sum of the configuration file and each script as the daemon loaded them
 2. Watches the directories holding those files with `inotifywait`, so saves that rename a new file
-   into place (as editors and `git checkout` do) are seen. Symlinks aren't followed: editing the
-   file a symlink points to isn't seen
+   into place (as editors and `git checkout` do) are seen. A file that is a symlink is followed: the
+   directory of the file it points to is watched too, and re-pointing the symlink counts as a change
 3. On an event for one of the files, compares its size, then its md5sum, with what the daemon loaded,
    ignoring events that change nothing, such as a bare `touch`. This also catches changes made
    before the watcher started

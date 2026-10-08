@@ -117,14 +117,14 @@ publish() { # publish config script_dir instrument [pid]
     {
         jq -n --argjson pid "${4:-${FAKE_PID}}" '{pid: $pid}'
         if [ -n "${1}" ]; then
-            jq -n --arg f "${1}" --argjson s "$(stat -c%s "${1}")" --arg m "$(md5sum "${1}" | cut -d' ' -f1)" \
+            jq -n --arg f "${1}" --argjson s "$(stat -L -c%s "${1}")" --arg m "$(md5sum "${1}" | cut -d' ' -f1)" \
                 '{config_file: $f, config_size_bytes: $s, config_md5: $m}'
         else
             jq -n '{config_file: null, config_size_bytes: null, config_md5: null}'
         fi
-        [ -e "${proc}" ] && jq -n --arg f "${proc}" --argjson s "$(stat -c%s "${proc}")" \
+        [ -e "${proc}" ] && jq -n --arg f "${proc}" --argjson s "$(stat -L -c%s "${proc}")" \
             --arg m "$(md5sum "${proc}" | cut -d' ' -f1)" '{proc_script: $f, proc_size_bytes: $s, proc_md5: $m}'
-        [ -e "${post}" ] && jq -n --arg f "${post}" --argjson s "$(stat -c%s "${post}")" \
+        [ -e "${post}" ] && jq -n --arg f "${post}" --argjson s "$(stat -L -c%s "${post}")" \
             --arg m "$(md5sum "${post}" | cut -d' ' -f1)" \
             '{post_proc_script: $f, post_proc_size_bytes: $s, post_proc_md5: $m}'
     } | jq -s add >"${LIVEREDUCE_FILEWATCH_JSON}.tmp"
@@ -308,6 +308,41 @@ expect_kills 13 "scripts are still watched"
 restarted
 
 ##################################################################################################
+echo "== symlinked files"
+# config management often links the published path to a file kept elsewhere
+stop_watcher
+mkdir -p "${T}/managed"
+mv "${CONF}" "${T}/managed/livereduce.conf"
+ln -s "${T}/managed/livereduce.conf" "${CONF}"
+mv "${PROC}" "${T}/managed/proc.py"
+ln -s "${T}/managed/proc.py" "${PROC}"
+publish "${CONF}" "${SCRIPTS}" TEST
+start_watcher || fail "watcher started with symlinked files"
+expect_kills 13 "a symlinked file matching the json is not mistaken for a change"
+echo "x" >"${T}/managed/unrelated.py"
+expect_kills 13 "an unrelated file next to a symlink target is ignored"
+echo "# v14" >"${T}/managed/proc.py"
+expect_kills 14 "editing the file a script symlink points to sends SIGTERM"
+check "...the published path is logged" logged "MD5 sum changed for ${PROC}"
+restarted
+replace "${T}/managed/livereduce.conf" '{"instrument": "TEST", "update_every": 6}'
+expect_kills 15 "renaming a new file over the config symlink target sends SIGTERM"
+restarted
+# let the watcher re-read the json first: re-pointed before that, it would exit for the new target
+# and leave the change to the restarted watcher's startup check
+expect_kills 15 "the republished json matches, so nothing is sent"
+echo "# v15" >"${T}/managed/proc2.py"
+ln -sfn "${T}/managed/proc2.py" "${PROC}"
+expect_kills 16 "pointing the script symlink at another file sends SIGTERM"
+restarted
+check "watcher exits when a symlink target changes, so it can watch the new one" wait_for 5 dead "${WATCHER_PID}"
+WATCHER_PID=""
+start_watcher || fail "watcher restarted"
+echo "# v16" >"${T}/managed/proc2.py"
+expect_kills 17 "the new symlink target is watched"
+restarted
+
+##################################################################################################
 echo "== published paths change"
 echo "# v1" >"${SCRIPTS2}/reduce_PG3_live_proc.py"
 publish "${CONF}" "${SCRIPTS2}" PG3
@@ -315,14 +350,14 @@ check "watcher exits when the paths change, so it can watch the new ones" wait_f
 wait "${WATCHER_PID}"
 check "watcher exit status is 0" test $? -eq 0
 check "inotifywait was stopped with it" wait_for 5 inotifywait_gone
-check "no signal for a path change" kills_are 13
+check "no signal for a path change" kills_are 17
 WATCHER_PID=""
 
 start_watcher || fail "watcher restarted"
 echo "# v14" >"${PROC}"
-expect_kills 13 "the old script directory is no longer watched"
+expect_kills 17 "the old script directory is no longer watched"
 echo "# v2" >"${SCRIPTS2}/reduce_PG3_live_proc.py"
-expect_kills 14 "the new script directory is watched"
+expect_kills 18 "the new script directory is watched"
 
 ##################################################################################################
 echo

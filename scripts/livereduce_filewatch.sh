@@ -10,7 +10,8 @@
 # If the file size has not changed, it compares the new md5 sum to the old md5 sum.
 # livereduce.py shuts down cleanly on SIGTERM and `Restart=always` in livereduce.service restarts it,
 # which will cause `livereduce.py` to reload the new config and scripts and write the new filewatch data.
-# This script watches that file too, and re-reads it when it is rewritten.
+# This script watches that file too, re-reads it when it is rewritten, watching the new files for changes.
+# A file that is a symlink is followed: the directory of the file it points to is watched as well.
 ##########################################################################################################
 
 echo "Starting livereduce_filewatch.sh"
@@ -40,23 +41,36 @@ read_filewatch_data() {
     # Read the JSON file and extract the file paths, md5 sums, and file sizes
     # Note, only one of proc or postproc is required;
     # if one is missing, they get set to "null"
-    LIVEREDUCE_PID=$(jq -r '.pid' "$json_file")
-    CONFIG_PATH=$(jq -r '.config_file' "$json_file")
-    CONFIG_MD5=$(jq -r '.config_md5' "$json_file")
-    CONFIG_SIZE=$(jq -r '.config_size_bytes' "$json_file")
-    PROC_PATH=$(jq -r '.proc_script' "$json_file")
-    PROC_MD5=$(jq -r '.proc_md5' "$json_file")
-    PROC_SIZE=$(jq -r '.proc_size_bytes' "$json_file")
-    POST_PROC_PATH=$(jq -r '.post_proc_script' "$json_file")
-    POST_PROC_MD5=$(jq -r '.post_proc_md5' "$json_file")
-    POST_PROC_SIZE=$(jq -r '.post_proc_size_bytes' "$json_file")
+    # Read the file once, as livereduce.py may replace it between the jq calls
+    local json
+    json=$(<"$json_file")
+    LIVEREDUCE_PID=$(jq -r '.pid' <<<"$json")
+    CONFIG_PATH=$(jq -r '.config_file' <<<"$json")
+    CONFIG_MD5=$(jq -r '.config_md5' <<<"$json")
+    CONFIG_SIZE=$(jq -r '.config_size_bytes' <<<"$json")
+    PROC_PATH=$(jq -r '.proc_script' <<<"$json")
+    PROC_MD5=$(jq -r '.proc_md5' <<<"$json")
+    PROC_SIZE=$(jq -r '.proc_size_bytes' <<<"$json")
+    POST_PROC_PATH=$(jq -r '.post_proc_script' <<<"$json")
+    POST_PROC_MD5=$(jq -r '.post_proc_md5' <<<"$json")
+    POST_PROC_SIZE=$(jq -r '.post_proc_size_bytes' <<<"$json")
+    # the files the published paths point to, which differ only if a path is, or is under, a symlink
+    CONFIG_REAL=$(resolve_path "$CONFIG_PATH")
+    PROC_REAL=$(resolve_path "$PROC_PATH")
+    POST_PROC_REAL=$(resolve_path "$POST_PROC_PATH")
 }
+
+# Resolve every symlink in a path, or return "null" for a "null" path
+resolve_path() { if [ "${1}" = "null" ]; then echo "null"; else readlink -m "${1}"; fi; }
+
+# The published paths and the files they point to; a change in any of them needs a restart of this script
+watched_paths() { echo "$CONFIG_PATH|$PROC_PATH|$POST_PROC_PATH|$CONFIG_REAL|$PROC_REAL|$POST_PROC_REAL"; }
 
 # Get file hash (md5 sum) of a file, or return "null" if the file does not exist or is empty
 file_hash() { [ -s "${1}" ] && md5sum "${1}" | cut -d' ' -f1 || echo "null"; }
 
-# Get file size of a file, or return "null" if the file does not exist or is empty
-file_size() { [ -s "${1}" ] && stat -c%s "${1}" || echo "null"; }
+# Get file size of a file, following symlinks as livereduce.py does, or return "null" if the file does not exist or is empty
+file_size() { [ -s "${1}" ] && stat -L -c%s "${1}" || echo "null"; }
 
 # Compare the current file size and md5 sum of a file to the stored values, and kill the livereduce service if they differ
 check_and_kill_if_changed() {
@@ -136,12 +150,14 @@ read_filewatch_data
 check_all
 
 # The directories below are only computed once, so a change of paths needs a restart of this script
-WATCHED_PATHS="$CONFIG_PATH|$PROC_PATH|$POST_PROC_PATH"
+WATCHED_PATHS="$(watched_paths)"
 
 # Watch the directories of the files, not the files themselves: a file watch is lost when an
-# editor saves by renaming a new file over the old one, and inotifywait fails on a "null" path
+# editor saves by renaming a new file over the old one, and inotifywait fails on a "null" path.
+# The directories of symlink targets are watched too, so editing the file a symlink points to is seen
 mapfile -t WATCH_DIRS < <(
-    for file in "$JSON_FILE" "$CONFIG_PATH" "$PROC_PATH" "$POST_PROC_PATH"; do
+    for file in "$JSON_FILE" "$CONFIG_PATH" "$PROC_PATH" "$POST_PROC_PATH" \
+        "$CONFIG_REAL" "$PROC_REAL" "$POST_PROC_REAL"; do
         [ "$file" != "null" ] && dirname "$file"
     done | sort -u
 )
@@ -171,7 +187,7 @@ while IFS='|' read -r -u "$EVENTS" dir file event; do
             # livereduce.py writes a temp file and renames it into place
             [ "$event" = "MOVED_TO" ] || continue
             read_filewatch_data
-            if [ "$CONFIG_PATH|$PROC_PATH|$POST_PROC_PATH" != "$WATCHED_PATHS" ]; then
+            if [ "$(watched_paths)" != "$WATCHED_PATHS" ]; then
                 echo "Watched paths changed, exiting so systemd restarts the watcher"
                 exit 0
             fi
@@ -179,14 +195,14 @@ while IFS='|' read -r -u "$EVENTS" dir file event; do
             # catch changes made after livereduce.py loaded the files
             check_all
             ;;
-        "$CONFIG_PATH")
-            check_and_kill_if_changed "$path" "$CONFIG_MD5" "$CONFIG_SIZE"
+        "$CONFIG_PATH" | "$CONFIG_REAL")
+            check_and_kill_if_changed "$CONFIG_PATH" "$CONFIG_MD5" "$CONFIG_SIZE"
             ;;
-        "$PROC_PATH")
-            check_and_kill_if_changed "$path" "$PROC_MD5" "$PROC_SIZE"
+        "$PROC_PATH" | "$PROC_REAL")
+            check_and_kill_if_changed "$PROC_PATH" "$PROC_MD5" "$PROC_SIZE"
             ;;
-        "$POST_PROC_PATH")
-            check_and_kill_if_changed "$path" "$POST_PROC_MD5" "$POST_PROC_SIZE"
+        "$POST_PROC_PATH" | "$POST_PROC_REAL")
+            check_and_kill_if_changed "$POST_PROC_PATH" "$POST_PROC_MD5" "$POST_PROC_SIZE"
             ;;
     esac
     # any other file in the watched directories is ignored

@@ -115,11 +115,9 @@ Configure in `/etc/livereduce.conf`:
 
 ## File Watcher Service
 
-The optional file watcher service, installed with the main package, watches `/etc/livereduce.conf`
-and the processing scripts, and applies changes without a manual restart:
+The optional file watcher service, installed with the main package, watches a live reduction configuration file (or `/etc/livereduce.conf` if no live config is specified) and the processing scripts, and applies changes without a manual restart.
 
-- **Processing script changed** - live data processing is restarted in place with the new script
-- **Configuration file changed** - the daemon exits and systemd starts it again with the new configuration
+If any of the watched files are modified, the service will restart the main daemon to pick up the changes.
 
 ```bash
 sudo systemctl enable livereduce_filewatch
