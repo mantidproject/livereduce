@@ -384,10 +384,8 @@ If valid, prints formatted JSON. If invalid, shows error.
 
 ### Configuration Reload
 
-The configuration file is read only at startup. If the optional `livereduce_filewatch` service is
-running, modifying `/etc/livereduce.conf` causes the service to exit, and systemd automatically
-restarts it with the new configuration. Otherwise, editing it has no effect until the service is
-restarted manually:
+The configuration file is read only at startup. If the optional `livereduce_filewatch` service is running, modifying `/etc/livereduce.conf` causes the `livereduce` service to exit, which is then automatically restarted by systemd with the new configuration.
+Otherwise, editing it has no effect until the service ismrestarted manually:
 
 ```bash
 # Edit config

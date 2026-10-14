@@ -410,7 +410,7 @@ the daemon must be restarted after every edit.
 systemctl status livereduce_filewatch
 
 # Check what the file watcher saw
-tail /var/log/SNS_applications/livereduce_filewatch.log
+tail -f /var/log/SNS_applications/livereduce_filewatch.log
 
 # Without the file watcher, restart to load the edited script
 sudo systemctl restart livereduce

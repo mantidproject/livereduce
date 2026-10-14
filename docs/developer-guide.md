@@ -222,7 +222,7 @@ systemctl status livereduce
 sudo journalctl -u livereduce -n 50
 
 # With the file watcher, check it saw the change:
-tail /var/log/SNS_applications/livereduce_filewatch.log
+tail -f /var/log/SNS_applications/livereduce_filewatch.log
 # "MD5 sum changed for /path/to/script (old: ..., new: ...)"
 # "sent SIGTERM to livereduce.py (pid 12345)"
 
