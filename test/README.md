@@ -45,3 +45,38 @@ Example using event data, to test memory monitoring
 This test case will continuously accumulate events until it fails.
 
 Start the server using `test/fake_event_server.py` and use the configuration `test/fake_event.conf`.
+
+
+Testing the file watcher
+------------------------
+
+`test/test_filewatch.sh` runs `scripts/livereduce_filewatch.sh` on its own, with a stand-in
+`systemctl` that records the restarts asked for, and a json written the way `livereduce.py`
+writes it. It checks which changes restart livereduce and which are ignored, that the watcher waits
+for a json from the current run of an active livereduce.service, that changes close together lead to
+one restart that logs each of them, after the `filewatch.delay` quiet period (an invalid one falls back
+to the default), that an edit undone within it restarts nothing, that a refused restart is logged
+and retried on the next change, that edits made while livereduce restarts are ignored, saves made
+of several steps, changes made before the watcher started, and that a watcher restarted with
+livereduce watches the paths it newly published.
+Only `inotify-tools` and `jq` are needed.
+
+```
+$ pixi run test-filewatch
+```
+
+Testing the file watcher under systemd
+--------------------------------------
+
+`test/systemd/` runs `livereduce.service` and `livereduce_filewatch.service` in a container with
+systemd as PID 1. It checks that editing a processing script or the configuration restarts livereduce
+(`systemctl restart` as `snsdata`, allowed by the polkit rule), that each restart of livereduce restarts the watcher too
+(`PartOf=`), which then watches what the new livereduce.py published, and that stopping and starting
+livereduce stops and starts the watcher.
+Mantid and nsd-app-wrap aren't needed: `fake_livereduce.py` and `nsd-app-wrap.sh` stand in for them.
+
+```
+$ pixi run test-systemd
+```
+
+This needs Docker and runs the container with `--privileged` so that systemd can start.

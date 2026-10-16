@@ -10,7 +10,7 @@ The configuration file is JSON format:
 {
   "instrument": "POWGEN",
   "CONDA_ENV": "mantid-nightly",
-  "script_dir": "/SNS/POWGEN/shared/livereduce",
+  "script_dir": "/SNS/PG3/shared/livereduce",
   "update_every": 30,
   "preserve_events": false,
   "accum_method": "Add",
@@ -21,6 +21,9 @@ The configuration file is JSON format:
   "watchdog": {
     "interval": 60,
     "threshold": 300
+  },
+  "filewatch": {
+    "delay": 5
   }
 }
 ```
@@ -49,15 +52,16 @@ mindmap
     Monitoring
       watchdog interval<br/>Check frequency
       watchdog threshold<br/>Max inactive seconds
+      filewatch delay<br/>Quiet time before restart
 ```
 
 **Note**: All configuration parameters are defined in the `Config` class in [`scripts/livereduce.py`](../scripts/livereduce.py).
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `instrument` | string | From `/etc/mantid.local.properties` | Instrument short name (e.g., "POWGEN") |
+| `instrument` | string | From `/etc/mantid.local.properties` | Instrument name or short name (e.g., "POWGEN" or "PG3") |
 | `CONDA_ENV` | string | `"mantid-dev"` | Conda environment containing Mantid |
-| `script_dir` | string | `/SNS/{instrument}/shared/livereduce` | Directory containing processing scripts |
+| `script_dir` | string | `/SNS/{short name}/shared/livereduce` | Directory containing processing scripts |
 | `update_every` | integer | `30` | Seconds between post-processing runs |
 | `preserve_events` | boolean | `true` | Keep event data after processing (memory intensive) |
 | `accum_method` | string | `"Add"` | How to accumulate chunks: "Add", "Replace", or "Append" |
@@ -67,6 +71,7 @@ mindmap
 | `mem_check_interval_sec` | integer | `1` | How often to check memory usage |
 | `watchdog.interval` | integer | `60` | Seconds between watchdog checks |
 | `watchdog.threshold` | integer | `300` | Restart main service if log unchanged for this many seconds (min 20) |
+| `filewatch.delay` | integer | `5` | Seconds without further changes the file watcher waits before restarting the main service |
 
 ## Parameter Details
 
@@ -76,10 +81,14 @@ mindmap
 **Default**: From `/etc/mantid.local.properties`
 **Required**: No (but strongly recommended)
 
-The instrument short name. Used to:
+The instrument name or short name, as known to Mantid. Used to:
 - Set Mantid's default instrument
-- Determine default `script_dir` location
+- Determine default `script_dir` location and the processing script names
 - Find facility information
+
+The script directory and names use Mantid's short name, whichever form is given here. For example,
+`"POWGEN"` and `"PG3"` both give `/SNS/PG3/shared/livereduce/reduce_PG3_live_proc.py`. Other
+examples: `NOMAD` becomes `NOM`, `SEQUOIA` becomes `SEQ`, `HYSPEC` becomes `HYS`.
 
 **Examples**:
 ```json
@@ -111,16 +120,17 @@ The conda environment containing Mantid. The service wrapper script (`livereduce
 ### script_dir
 
 **Type**: string
-**Default**: `/SNS/{instrument}/shared/livereduce`
+**Default**: `/SNS/{short name}/shared/livereduce`
 **Required**: No
 
-Directory containing processing scripts. Scripts must be named:
-- `reduce_{instrument}_live_proc.py`
-- `reduce_{instrument}_live_post_proc.py`
+Directory containing processing scripts. Scripts must be named with the instrument's short name
+(see [instrument](#instrument)):
+- `reduce_{short name}_live_proc.py`
+- `reduce_{short name}_live_post_proc.py`
 
 **Examples**:
 ```json
-{"script_dir": "/SNS/POWGEN/shared/livereduce"}
+{"script_dir": "/SNS/PG3/shared/livereduce"}
 {"script_dir": "/home/user/test_scripts"}
 {"script_dir": "/custom/location"}
 ```
@@ -296,6 +306,29 @@ Maximum allowed time without log activity before watchdog restarts main service.
 
 **Note**: Must be at least 20 seconds (time needed to restart service).
 
+### filewatch.delay
+
+**Type**: integer
+**Default**: `5`
+**Required**: No
+**Units**: seconds
+
+Used only by the optional `livereduce_filewatch` service. After a change to the configuration file
+or a processing script, the file watcher waits until none of them has changed for this many seconds,
+then restarts the main service once. Saving several files in a row, or the same file several times,
+therefore causes one restart, and an edit undone within the delay causes none. Each file that changed
+is logged. `0` restarts as soon as a change is seen. An invalid value uses the default, with a warning
+in `journalctl -u livereduce_filewatch`.
+
+**Examples**:
+```json
+{"filewatch": {"delay": 5}}   // Restart 5 s after the last save
+{"filewatch": {"delay": 30}}  // Leave time to update several scripts by hand
+```
+
+**Note**: The file watcher reads it at startup. Changing it is a configuration change, so the
+service restarts, and the file watcher with it, which then uses the new value.
+
 ## Example Configurations
 
 ### Event-Based Instrument (High Memory)
@@ -379,19 +412,22 @@ If valid, prints formatted JSON. If invalid, shows error.
 
 ### Configuration Reload
 
-The configuration file is read only at startup. Editing it has no effect until the service is
-restarted manually:
+The configuration file is read only at startup. If the optional `livereduce_filewatch` service is running, modifying `/etc/livereduce.conf` causes the `livereduce` service to be restarted with the new configuration, once no file has changed for
+[`filewatch.delay`](#filewatchdelay) seconds.
+Otherwise, editing it has no effect until the service is restarted manually:
 
 ```bash
 # Edit config
 sudoedit /etc/livereduce.conf
 
-# Restart to apply the new configuration
+# Without livereduce_filewatch, restart to apply the new configuration
 sudo systemctl restart livereduce
 
 # Monitor logs
 tail -f /var/log/SNS_applications/livereduce.log
 ```
+
+See [File Watcher Service](developer-guide.md#file-watcher-service) for enabling it.
 
 ## Related Documentation
 

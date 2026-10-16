@@ -15,14 +15,15 @@ This guide walks through setting up live reduction on a dedicated server for aut
 flowchart TD
     Step1["Step 1: Install RPM"]
     Step2["Step 2: Set up snsdata user"]
-    Step3["Step 3: Configure Mantid environment"]
-    Step4["Step 4: Create directories"]
-    Step5["Step 5: Configure network access"]
-    Step6["Step 6: Create /etc/livereduce.conf"]
-    Step7["Step 7: Write processing scripts"]
-    Step8["Step 8: Test with fake server"]
-    Step9["Step 9: Enable and start service"]
-    Step10["Step 10: Verify operation"]
+    Step3["Step 3: Configure Mantid"]
+    Step4["Step 4: Create /etc/livereduce.conf"]
+    Step5["Step 5: Set up environment with pixi"]
+    Step6["Step 6: Create script directory"]
+    Step7["Step 7: Install processing scripts"]
+    Step8["Step 8: Enable and start service"]
+    Step9["Step 9: Verify operation"]
+    Step10["Step 10: Optional - enable watchdog"]
+    Step11["Step 11: Optional - enable file watcher"]
 
     Step1 --> Step2
     Step2 --> Step3
@@ -32,7 +33,8 @@ flowchart TD
     Step6 --> Step7
     Step7 --> Step8
     Step8 --> Step9
-    Step9 --> Step10
+    Step9 -.-> Step10
+    Step9 -.-> Step11
 ```
 
 ### 1. Install the livereduce RPM
@@ -51,8 +53,10 @@ This installs:
 - `/usr/bin/livereduce.sh` - Service wrapper script
 - `/usr/bin/livereduce.py` - Main daemon
 - `/usr/lib/systemd/system/livereduce.service` - Systemd unit file
-- `/usr/bin/livereduce_watchdog.sh` - Watchdog service wrapper
-- `/usr/lib/systemd/system/livereduce_watchdog.service` - Watchdog systemd unit file
+- `/usr/bin/livereduce_filewatch.sh` - File watcher service script
+- `/usr/lib/systemd/system/livereduce_filewatch.service` - File watcher systemd unit file
+
+The watchdog is a separate package, see [step 10](#10-optional-enable-watchdog).
 
 ### 2. Create the snsdata user (if not exists)
 
@@ -97,19 +101,20 @@ The `CONDA_ENV` setting in `/etc/livereduce.conf` specifies which Mantid environ
 
 ### 6. Create script directory
 
+The default location uses Mantid's short name for the instrument, e.g. `PG3` for `POWGEN`:
 ```bash
 # Default location for SNS instruments
-sudo mkdir -p /SNS/POWGEN/shared/livereduce
-sudo chown snsdata:users /SNS/POWGEN/shared/livereduce
-sudo chmod 775 /SNS/POWGEN/shared/livereduce
+sudo mkdir -p /SNS/PG3/shared/livereduce
+sudo chown snsdata:users /SNS/PG3/shared/livereduce
+sudo chmod 775 /SNS/PG3/shared/livereduce
 ```
 
 ### 7. Install processing scripts
 
-Copy your instrument-specific scripts:
+Copy your instrument-specific scripts, which are also named with the short name:
 ```bash
-cp reduce_POWGEN_live_proc.py /SNS/POWGEN/shared/livereduce/
-cp reduce_POWGEN_live_post_proc.py /SNS/POWGEN/shared/livereduce/
+cp reduce_PG3_live_proc.py /SNS/PG3/shared/livereduce/
+cp reduce_PG3_live_post_proc.py /SNS/PG3/shared/livereduce/
 ```
 
 See [Processing Scripts](processing-scripts.md) for how to write these.
@@ -131,15 +136,28 @@ tail -f /var/log/SNS_applications/livereduce.log
 Look for:
 - "StartLiveData" with configuration details
 - Connection messages
-- Processing script detection
+- Which processing scripts were loaded ("Using ProcessingScriptFilename ...")
 
 ### 10. Optional: Enable watchdog
 
-The watchdog monitors the main service and restarts it if unresponsive:
+The watchdog monitors the main service and restarts it if unresponsive. It is a separate package,
+which installs `/usr/bin/livereduce_watchdog.sh`, `/usr/lib/systemd/system/livereduce_watchdog.service`,
+and relies on the polkit rule, installed with `python-livereduce`, that lets `snsdata` start, stop
+and restart `livereduce.service`:
 ```bash
 sudo dnf install python-livereduce-watchdog
 sudo systemctl enable livereduce_watchdog
 sudo systemctl start livereduce_watchdog
+```
+
+### 11. Optional: Enable file watcher
+
+The file watcher applies configuration and processing script changes without a manual restart.
+It is installed with `python-livereduce`, but not enabled. Once enabled, it starts and stops with
+`livereduce`:
+```bash
+sudo systemctl enable livereduce_filewatch
+sudo systemctl start livereduce_filewatch
 ```
 
 ## Network Requirements
@@ -177,8 +195,8 @@ sudo firewall-cmd --reload
 
 ### Updating Processing Scripts
 
-The daemon loads the processing scripts at startup and does not watch them for changes, so it
-must be restarted for an edit to take effect:
+The daemon loads the processing scripts at startup. If `livereduce_filewatch` is running, it
+detects script changes automatically; otherwise the daemon must be restarted for an edit to take effect:
 
 **1. Test scripts locally** (see [Processing Scripts](processing-scripts.md))
 
@@ -188,8 +206,13 @@ scp reduce_INSTR_live_proc.py snsdata@beamline-server:/SNS/INSTR/shared/liveredu
 scp reduce_INSTR_live_post_proc.py snsdata@beamline-server:/SNS/INSTR/shared/livereduce/
 ```
 
-**3. Restart the daemon**:
-Adding, modifying or deleting a script has no effect until the service is restarted:
+**3. Automatic detection or restart**:
+With `livereduce_filewatch` running, the file watcher uses inotify to watch for file changes:
+- Script modified (size or md5sum changed): restarts the daemon, which loads the new script
+- Script deleted: restarts the daemon, which runs without that script
+- Script created: **not** detected if it didn't exist when the daemon started; restart the service
+
+Without it, adding, modifying or deleting a script has no effect until the service is restarted:
 ```bash
 sudo systemctl restart livereduce
 ```
@@ -200,7 +223,12 @@ sudo systemctl restart livereduce
 systemctl status livereduce
 sudo journalctl -u livereduce -n 50
 
-# Look for the scripts the daemon loaded:
+# With the file watcher, check it saw the change:
+tail -f /var/log/SNS_applications/livereduce_filewatch.log
+# "MD5 sum changed for /path/to/script (old: ..., new: ...)" - one line per file that changed
+# "restarting livereduce.service"
+
+# Look for the scripts the restarted daemon loaded:
 # "Using ProcessingScriptFilename '/path/to/script'"
 # "Using PostProcessingScriptFilename '/path/to/script'"
 ```
@@ -212,14 +240,15 @@ tail -f /var/log/SNS_applications/livereduce.log
 
 ### Updating Configuration
 
-**Note**: `/etc/livereduce.conf` is read only at startup. Editing it has no effect on a running
-daemon, which must be restarted manually to apply the new configuration.
+**Note**: `/etc/livereduce.conf` is read only at startup. With `livereduce_filewatch` running,
+modifying it causes the service to exit, and systemd will restart it with the new configuration
+after a short delay. Otherwise, the daemon must be restarted manually to apply the new configuration.
 
 ```bash
 # 1. Edit configuration
 sudo vim /etc/livereduce.conf
 
-# 2. Restart to apply it
+# 2. Without livereduce_filewatch, restart to apply it
 sudo systemctl restart livereduce
 
 # 3. Monitor logs to verify
@@ -345,6 +374,71 @@ sudo journalctl -u livereduce_watchdog -f
 - Investigating why restarts happen
 - Watchdog too aggressive for workload
 
+## File Watcher Service
+
+The file watcher is a separate, optional service that applies configuration and processing script
+changes to the running daemon. See [Service Behavior](#service-behavior) for the details.
+
+### How It Works
+
+1. Waits for the daemon to write `/var/lib/livereduce/livereduce_filewatch.json` at startup, then reads it once:
+   the systemd invocation id of the daemon's run, and the path, size and md5sum of the configuration file
+   and each script as the daemon loaded them. Until the json names the current run of an active
+   `livereduce.service`, it is missing or left over from the previous run, so the file watcher keeps waiting
+2. Watches the directories holding those files with `inotifywait`, so saves that rename a new file
+   into place (as editors and `git checkout` do) are seen. A file that is a symlink is followed: the
+   directory of the file it points to is watched too, and re-pointing the symlink counts as a change
+3. On an event for one of the files, waits until none of them has had an event for
+   `filewatch.delay` seconds (default 5, see [Configuration](configuration.md#filewatchdelay)), then
+   compares each file's size, then md5sum, with what the daemon loaded. Events that change nothing,
+   such as a bare `touch` or an edit undone within the delay, are ignored. The same check at startup
+   catches changes made before the watcher started
+4. Changed: logs every file that changed, and runs `systemctl restart livereduce.service` once, as the
+   watchdog does. The daemon stops cleanly and starts again with the new configuration and scripts
+5. Ignores further changes: `livereduce_filewatch.service` is `PartOf=livereduce.service`, so systemd
+   restarts the file watcher along with the daemon, and the new file watcher goes back to step 1
+
+### Managing File Watcher
+
+```bash
+sudo systemctl start livereduce_filewatch
+sudo systemctl stop livereduce_filewatch
+sudo systemctl restart livereduce_filewatch
+systemctl status livereduce_filewatch
+```
+
+**Important**:
+- Stopping the file watcher doesn't affect main service, but stopping or restarting the main
+  service does the same to the file watcher. Once enabled, starting the main service starts it too
+- Without it, changes need `sudo systemctl restart livereduce`
+- Only edits made on the server itself are detected; inotify doesn't see changes made on another
+  host through a network filesystem
+
+### File Watcher Logs
+
+```bash
+# View file watcher log - one entry per change acted on
+tail -f /var/log/SNS_applications/livereduce_filewatch.log
+
+# File watcher journal - startup messages, plus a copy of each log entry
+sudo journalctl -u livereduce_filewatch -f
+```
+
+The file watcher won't start if it can't write its log file. If the log becomes unwritable later
+(e.g. after log rotation), it still signals the daemon and warns in the journal instead, so a
+broken log never stops a change being applied.
+
+### When to Use File Watcher
+
+**Enable for**:
+- Frequent script updates
+- Deploying scripts unattended, e.g. from version control
+
+**Disable for**:
+- Editing scripts in several steps, where each save would restart the daemon
+- Controlling exactly when changes take effect
+- Investigating why restarts happen
+
 ## Production Checklist
 
 Before deploying to production:
@@ -357,18 +451,39 @@ Before deploying to production:
 - [ ] Output directory permissions correct
 - [ ] Log rotation configured
 - [ ] Watchdog enabled and configured
+- [ ] File watcher enabled, if changes should apply automatically
 - [ ] Service enabled at boot
 - [ ] Monitoring/alerting set up
 - [ ] Documentation for instrument scientists
 
 ## Service Behavior
 
-The daemon will immediately cancel [StartLiveData](https://docs.mantidproject.org/nightly/algorithms/StartLiveData-v1.html) and [MonitorLiveData](https://docs.mantidproject.org/nightly/algorithms/MonitorLiveData-v1.html)
-and restart them when one of the processing scripts is changed (verified by md5sum) or removed.
-This is to be resilient against changes in the scripts.
+The daemon reads the configuration file and processing scripts only at startup. Changes are
+detected by the separate `livereduce_filewatch` service (installed with `python-livereduce`),
+which uses `inotifywait` and compares sizes and md5sums so that only real content changes act.
+Like the watchdog, it restarts the daemon with `systemctl`, as `snsdata`, which the polkit rule
+`/etc/polkit-1/rules.d/50-snsdata-livereduce.rules` (installed with `python-livereduce`) allows.
 
-The process will exit and systemd will restart it if the configuration file is changed.
-This is done in case the version of mantid wanted is changed.
+The script paths depend on mantid's short instrument name (e.g. `POWGEN` becomes `PG3`), so the
+file watcher doesn't work them out itself. At startup the daemon writes them to
+`/var/lib/livereduce/livereduce_filewatch.json`, along with the invocation id systemd gave this run of
+the service (`INVOCATION_ID`), the configuration file it read, and the
+size and md5sum of each file as loaded, and the file watcher watches the files named there.
+Starting from those values rather than the files on disk means an edit made while the file watcher
+was restarting is still acted on. A script that doesn't exist is left out, so creating it later
+needs a manual restart. `/var/lib/livereduce` is created by `livereduce.service` (`StateDirectory=`).
+
+When the configuration file or one of the processing scripts is changed or removed, the file
+watcher runs `systemctl restart --no-block livereduce.service`. The daemon stops
+[MonitorLiveData](https://docs.mantidproject.org/nightly/algorithms/MonitorLiveData-v1.html)
+cleanly on `SIGTERM` and exits, and systemd starts it again with the new files. A
+restart rather than a reload in place also covers a change to the version of mantid wanted.
+`livereduce_filewatch.service` is `PartOf=livereduce.service`, so every restart of the daemon,
+including those by `Restart=always`, restarts the file watcher as well. The new file watcher waits
+for the restarted daemon to publish its json, then watches the files named there.
+
+Without `livereduce_filewatch` running, changes take effect only after
+`sudo systemctl restart livereduce`.
 
 ## Building and Deploying a New Version of the Software
 
@@ -410,6 +525,7 @@ Packages generated by this script:
 - `$HOME/rpmbuild/SRPMS/python-livereduce-<version>-1.el9.src.rpm`
 
 The source package `src.rpm` contains both `livereduce` and `livereduce-watchdog` services.
+The `livereduce_filewatch` service is part of `python-livereduce`.
 
 The last step requires manually uploading these packages to the GitHub release page created in the previous step.
 You will need to edit the release page and click on `Attach binaries by dropping them here or selecting them`

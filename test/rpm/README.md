@@ -35,7 +35,7 @@ Each subtask is independently runnable:
 | Task | What it does |
 |---|---|
 | `pixi run rpm-build` | Builds the sdist (`pixi run build`) and the `livereduce-rpm:local` Docker image containing the built RPMs. Verifies caller is in `docker` group. |
-| `pixi run rpm-test` | Spins a fresh container from `livereduce-rpm:local`, installs both RPMs with `--nodeps`, checks file layout / log-dir ownership, and runs `systemctl --dry-run enable/disable` for `livereduce.service` and `livereduce_watchdog.service`. |
+| `pixi run rpm-test` | Spins a fresh container from `livereduce-rpm:local`, installs both RPMs with `--nodeps`, checks file layout / log-dir ownership (including that `livereduce_filewatch` ships in `python-livereduce`), and runs `systemctl --dry-run enable/disable` for `livereduce.service`, `livereduce_watchdog.service` and `livereduce_filewatch.service`. |
 | `pixi run rpm-fetch` | Copies the built RPMs out of the image into `dist/rpm/` (or `$LIVEREDUCE_RPM_DIST_DIR`). |
 
 Override the fetch target dir:
