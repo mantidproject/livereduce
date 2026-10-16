@@ -76,7 +76,7 @@ tail -f /var/log/SNS_applications/livereduce_filewatch.log
 **Shows**:
 
 - Which configuration or script change was detected (size or md5sum)
-- Whether the daemon was sent `SIGTERM`, with its pid, or wasn't running
+- Whether `livereduce.service` was restarted, or why `systemctl` refused
 
 Each entry is also in `sudo journalctl -u livereduce_filewatch`. If the log file can't be written,
 changes are still applied, and the journal shows "WARNING: could not write to ..." instead.
@@ -384,8 +384,9 @@ If nothing was logged:
 - The script didn't exist when the daemon started - a missing script is left out of that file, so
   creating it later isn't seen. Restart the service
 
-If "livereduce.py (pid N) is not running, no SIGTERM sent" was logged, the daemon was already
-down; it loads the current files when systemd starts it again, so nothing more is needed.
+If "could not restart livereduce.service: ..." was logged, `systemctl` refused the restart, usually
+"Access denied" because the polkit rule `/etc/polkit-1/rules.d/50-snsdata-livereduce.rules` is
+missing or `polkit` isn't running. The next change tries again; until then restart the service by hand.
 
 **Check 4: Permissions**
 
@@ -406,17 +407,18 @@ sudo journalctl -u livereduce_filewatch -n 50
 
 **Common errors**:
 
-- "Error: /var/lib/livereduce/livereduce_filewatch.json does not exist." - the daemon hasn't written it yet.
-  This is normal for a few seconds while the daemon starts, and systemd retries every 10 seconds.
-  If it lasts, check `systemctl status livereduce`
 - "Cannot write to log file '...'" - `snsdata` can't write
   `/var/log/SNS_applications/livereduce_filewatch.log`. **Fix**: check the file and directory are
   owned by `snsdata`
 - "Error: inotifywait stopped" - usually a watched directory was removed, or the inotify watch
   limit (`fs.inotify.max_user_watches`) was reached. systemd restarts the file watcher
 
-**Restarting, not failing**: "Watched paths changed, exiting so systemd restarts the watcher" is
-normal after the daemon starts with different script paths, e.g. a new `script_dir`.
+**Waiting, not failing**: "Waiting for livereduce.py to publish /var/lib/livereduce/livereduce_filewatch.json"
+with nothing after it means the daemon hasn't written the json yet. This is normal for a few seconds
+while the daemon starts. If it lasts, check `systemctl status livereduce`.
+
+**Stopped with the daemon**: the file watcher is `PartOf=livereduce.service`, so it is stopped and
+restarted along with it; a file watcher that is inactive while `livereduce` is stopped is expected.
 
 ## Debugging Techniques
 
@@ -611,7 +613,7 @@ systemctl status livereduce_watchdog
 
 ### Managing File Watcher
 
-File watcher is independent:
+The file watcher can be stopped on its own, but stops and restarts with the main service:
 
 ```bash
 # File watcher operations

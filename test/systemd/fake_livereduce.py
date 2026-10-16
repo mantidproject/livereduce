@@ -1,13 +1,17 @@
 """Stand-in for scripts/livereduce.py with only what livereduce_filewatch.sh relies on: at startup it writes
-its pid and the config and script paths, with their sizes and md5s, to /var/lib/livereduce/livereduce_filewatch.json,
-as Config.write_md5_json does. SIGTERM (sent by the watcher to that pid) exits cleanly.
-Each event is logged with the pid so the test can tell a restart happened."""
+the invocation id of its run of livereduce.service and the config and script paths, with their sizes and md5s, to
+/var/lib/livereduce/livereduce_filewatch.json, as Config.write_md5_json does. SIGTERM (sent by systemd when the
+watcher restarts the service) exits cleanly.
+Each event is logged with the pid so the test can tell a restart happened.
+It publishes after a delay, standing in for importing mantid, so the watcher restarted with it
+(PartOf=) first sees the json of the livereduce.py that exited."""
 
 import hashlib
 import json
 import os
 import signal
 import sys
+import time
 
 LOG_FILE = "/var/log/SNS_applications/livereduce.log"
 CONFIG_FILE = "/etc/livereduce.conf"
@@ -30,7 +34,7 @@ def publish():
         config = json.load(handle)
     start = os.path.join(config["script_dir"], f"reduce_{config['instrument']}_live")
     data = {
-        "pid": os.getpid(),
+        "invocation_id": os.environ.get("INVOCATION_ID"),
         "config_file": CONFIG_FILE,
         "config_size_bytes": os.path.getsize(CONFIG_FILE),
         "config_md5": md5(CONFIG_FILE),
@@ -52,6 +56,7 @@ def on_term(sig_received, frame):  # noqa: ARG001
 
 
 signal.signal(signal.SIGTERM, on_term)
+time.sleep(3)
 publish()
 log("started")
 while True:

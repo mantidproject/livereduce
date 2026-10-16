@@ -1,13 +1,17 @@
+##################
+### Base image ###
+##################
+
 # ubi-init (systemd as PID 1), so the same image can also run `pixi run test-systemd`
-FROM registry.access.redhat.com/ubi9/ubi-init
+FROM registry.access.redhat.com/ubi9/ubi-init AS base
 
 USER root
 WORKDIR /root
 
-# Install EPEL and base packages: build tooling, plus inotify-tools/procps-ng/which for
+# Install EPEL and base packages: build tooling, plus inotify-tools/procps-ng/which/polkit for
 # livereduce_filewatch.sh and nsd-app-wrap.sh when this image is run under systemd
 RUN dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
-RUN dnf install -y make rpm-build python3 python-unversioned-command jq inotify-tools procps-ng which \
+RUN dnf install -y make rpm-build python3 python-unversioned-command jq inotify-tools procps-ng which polkit \
     && dnf clean all
 
 # Create required groups and users for livereduce
@@ -18,10 +22,19 @@ RUN useradd -r -g users -G hfiradmin snsdata
 # Verify that snsdata exists
 RUN id snsdata
 
+###################
+### Build image ###
+###################
+
+FROM base AS builder
+
 # Create builder user with passwordless sudo so rpm-test can install
 # RPMs and exercise systemctl inside this image without changing user.
 RUN useradd builder
-RUN dnf install -y sudo && echo 'builder ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/builder && chmod 0440 /etc/sudoers.d/builder
+RUN dnf install -y sudo && \
+    echo 'builder ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/builder && \
+    chmod 0440 /etc/sudoers.d/builder
+
 USER builder
 WORKDIR /home/builder
 

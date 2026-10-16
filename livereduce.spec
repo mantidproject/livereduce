@@ -33,8 +33,9 @@ Requires: systemd
 %description
 Daemon for running the algorithm StartLiveData. Also provides the optional livereduce_filewatch
 service, which watches /etc/livereduce.conf and the processing/post-processing scripts, since
-livereduce itself only reads them at startup. When the content of any of them changes, livereduce
-is sent SIGTERM, exits cleanly, and systemd restarts it with the new configuration and scripts.
+livereduce itself only reads them at startup. When the content of any of them changes, the service
+is restarted with the new configuration and scripts. The polkit rule lets snsdata, which runs both
+the file watcher and the watchdog, start, stop and restart livereduce.service.
 
 %{?python_provide:%python_provide python%{python3_pkgversion}-%{srcname}}
 
@@ -81,6 +82,11 @@ Daemon that monitors the livereduce log file and restarts service livereduce if 
 
 %post
 %systemd_post livereduce.service livereduce_filewatch.service
+# on upgrade, re-create an enabled watcher's links from its current [Install], which since
+# PartOf=livereduce.service also has it wanted by livereduce.service. A disabled one is left alone
+if [ $1 -ge 2 ] && systemctl --quiet is-enabled livereduce_filewatch.service 2>/dev/null; then
+    systemctl reenable livereduce_filewatch.service >/dev/null 2>&1 || :  # codespell:ignore
+fi
 %{__mkdir} -p /var/log/SNS_applications/
 %{__chown} snsdata /var/log/SNS_applications/
 %{__chmod} 1755 /var/log/SNS_applications/
@@ -110,8 +116,8 @@ Daemon that monitors the livereduce log file and restarts service livereduce if 
 %{_unitdir}/livereduce.service
 %{_bindir}/livereduce_filewatch.sh
 %{_unitdir}/livereduce_filewatch.service
+%config(noreplace) %{_sysconfdir}/polkit-1/rules.d/50-snsdata-livereduce.rules
 
 %files watchdog
 %{_bindir}/livereduce_watchdog.sh
 %{_unitdir}/livereduce_watchdog.service
-%config(noreplace) %{_sysconfdir}/polkit-1/rules.d/50-snsdata-livereduce.rules

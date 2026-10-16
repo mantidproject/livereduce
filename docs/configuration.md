@@ -21,6 +21,9 @@ The configuration file is JSON format:
   "watchdog": {
     "interval": 60,
     "threshold": 300
+  },
+  "filewatch": {
+    "delay": 5
   }
 }
 ```
@@ -49,6 +52,7 @@ mindmap
     Monitoring
       watchdog interval<br/>Check frequency
       watchdog threshold<br/>Max inactive seconds
+      filewatch delay<br/>Quiet time before restart
 ```
 
 **Note**: All configuration parameters are defined in the `Config` class in [`scripts/livereduce.py`](../scripts/livereduce.py).
@@ -67,6 +71,7 @@ mindmap
 | `mem_check_interval_sec` | integer | `1` | How often to check memory usage |
 | `watchdog.interval` | integer | `60` | Seconds between watchdog checks |
 | `watchdog.threshold` | integer | `300` | Restart main service if log unchanged for this many seconds (min 20) |
+| `filewatch.delay` | integer | `5` | Seconds without further changes the file watcher waits before restarting the main service |
 
 ## Parameter Details
 
@@ -301,6 +306,29 @@ Maximum allowed time without log activity before watchdog restarts main service.
 
 **Note**: Must be at least 20 seconds (time needed to restart service).
 
+### filewatch.delay
+
+**Type**: integer
+**Default**: `5`
+**Required**: No
+**Units**: seconds
+
+Used only by the optional `livereduce_filewatch` service. After a change to the configuration file
+or a processing script, the file watcher waits until none of them has changed for this many seconds,
+then restarts the main service once. Saving several files in a row, or the same file several times,
+therefore causes one restart, and an edit undone within the delay causes none. Each file that changed
+is logged. `0` restarts as soon as a change is seen. An invalid value uses the default, with a warning
+in `journalctl -u livereduce_filewatch`.
+
+**Examples**:
+```json
+{"filewatch": {"delay": 5}}   // Restart 5 s after the last save
+{"filewatch": {"delay": 30}}  // Leave time to update several scripts by hand
+```
+
+**Note**: The file watcher reads it at startup. Changing it is a configuration change, so the
+service restarts, and the file watcher with it, which then uses the new value.
+
 ## Example Configurations
 
 ### Event-Based Instrument (High Memory)
@@ -384,8 +412,9 @@ If valid, prints formatted JSON. If invalid, shows error.
 
 ### Configuration Reload
 
-The configuration file is read only at startup. If the optional `livereduce_filewatch` service is running, modifying `/etc/livereduce.conf` causes the `livereduce` service to exit, which is then automatically restarted by systemd with the new configuration.
-Otherwise, editing it has no effect until the service ismrestarted manually:
+The configuration file is read only at startup. If the optional `livereduce_filewatch` service is running, modifying `/etc/livereduce.conf` causes the `livereduce` service to be restarted with the new configuration, once no file has changed for
+[`filewatch.delay`](#filewatchdelay) seconds.
+Otherwise, editing it has no effect until the service is restarted manually:
 
 ```bash
 # Edit config

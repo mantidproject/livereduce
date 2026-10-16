@@ -124,7 +124,9 @@ sudo systemctl enable livereduce_filewatch
 sudo systemctl start livereduce_filewatch
 ```
 
-Only changes to a file's content count, so a bare `touch` does nothing.
+Only changes to a file's content count, so a bare `touch` does nothing. The restart waits until no
+watched file has changed for `filewatch.delay` seconds (default 5), so saving several files in a row
+restarts the daemon once.
 
 ## Acknowledgements
 

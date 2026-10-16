@@ -84,6 +84,20 @@ docker run --rm livereduce-rpm:local bash -ec '
   sudo systemctl --dry-run disable livereduce_watchdog.service
   sudo systemctl --dry-run enable  livereduce_filewatch.service
   sudo systemctl --dry-run disable livereduce_filewatch.service
+  WANTS=/etc/systemd/system/livereduce.service.wants/livereduce_filewatch.service
+  # enabled, the watcher is also wanted by livereduce.service
+  sudo systemctl enable livereduce_filewatch.service
+  test -L $WANTS
+  # upgrading from a version without that link re-creates it for an enabled watcher
+  sudo rm $WANTS
+  sudo rpm -Uvh --replacepkgs --nodeps $RPM_DIR/*.noarch.rpm
+  test -L $WANTS
+  test -L /etc/systemd/system/multi-user.target.wants/livereduce_filewatch.service
+  # and leaves a disabled watcher disabled
+  sudo systemctl disable livereduce_filewatch.service
+  sudo rpm -Uvh --replacepkgs --nodeps $RPM_DIR/*.noarch.rpm
+  test "$(systemctl is-enabled livereduce_filewatch.service || true)" = disabled
+  test ! -e $WANTS
 '
 """
 depends-on = ["rpm-build"]
@@ -128,3 +142,4 @@ depends-on = ["rpm-build"]
 test-bats = "bats test/test_livereduce.bats"
 test-python = "pytest test/"
 test-filewatch = "bash test/test_filewatch.sh"
+test-all = { depends-on = ["test-bats", "test-python", "test-filewatch"], cmd = "echo 'All tests passed!'" }

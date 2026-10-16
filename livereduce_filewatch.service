@@ -1,5 +1,8 @@
 [Unit]
 Description=Livereduce File Watcher
+# restarted whenever livereduce.service restarts, including Restart=always restarts, and stopped with it,
+# so each livereduce.py is watched by a watcher that read what it published
+PartOf=livereduce.service
 After=livereduce.service
 
 [Service]
@@ -10,4 +13,5 @@ Restart=always
 RestartSec=10
 
 [Install]
-WantedBy=multi-user.target
+# livereduce.service pulls this in when started, so it also comes back after a manual stop and start
+WantedBy=multi-user.target livereduce.service

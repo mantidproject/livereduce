@@ -347,9 +347,9 @@ class Config:
                 return hashlib.md5(handle.read(), usedforsecurity=False).hexdigest()
 
         data = {
-            # signalled by livereduce_filewatch.sh. This is the python process itself, while the
-            # service's MainPID is the livereduce.sh wrapper
-            "pid": os.getpid(),
+            # identifies this run of livereduce.service, so livereduce_filewatch.sh can tell this file
+            # from one left over by the previous run. None outside of systemd
+            "invocation_id": os.environ.get("INVOCATION_ID"),
             "config_file": self.filename,
             "config_size_bytes": self.config_size_bytes,  # None, like the rest, when using the default configuration
             "config_md5": self.config_md5,

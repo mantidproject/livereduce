@@ -3,14 +3,16 @@
 ##########################################################################################################
 # When the livereduce service starts, `livereduce.py` runs in the background and generates
 # `/var/lib/livereduce/livereduce_filewatch.json`, which contains:
-# the filepath, md5 sum, and file size of the config file, proc script, and postproc script.
-# This script reads that file and runs `inotifywait` to watch for changes to those files.
-# When a change is detected, it first compares the new file size to the old file size.
-# If the file size has changed, it sends SIGTERM to livereduce.py, using the pid in that file.
-# If the file size has not changed, it compares the new md5 sum to the old md5 sum.
-# livereduce.py shuts down cleanly on SIGTERM and `Restart=always` in livereduce.service restarts it,
-# which will cause `livereduce.py` to reload the new config and scripts and write the new filewatch data.
-# This script watches that file too, re-reads it when it is rewritten, watching the new files for changes.
+# the systemd invocation id of the service run that wrote it, and the filepath, md5 sum, and file size
+# of the config file, proc script, and postproc script.
+# This script waits for that file, reads it once and runs `inotifywait` to watch for changes to those files.
+# When a change is detected, it waits until the files have been quiet for `filewatch.delay` seconds
+# (default 5) from the config file, so that several saves in a row lead to one restart.
+# It then compares each file's size, then md5 sum, with what livereduce.py loaded, and logs each that changed.
+# If any did, it restarts livereduce.service with `systemctl`, as the watchdog does
+# (allowed by the polkit rule 50-snsdata-livereduce.rules).
+# The restarted `livereduce.py` reloads the new config and scripts and writes the new filewatch data.
+# `PartOf=livereduce.service` restarts this script along with it, so it then watches the new files.
 # A file that is a symlink is followed: the directory of the file it points to is watched as well.
 ##########################################################################################################
 
@@ -20,8 +22,10 @@ echo "ARGS: $*"
 # Written by livereduce.py (see FILEWATCH_JSON in scripts/livereduce.py)
 JSON_FILE="${LIVEREDUCE_FILEWATCH_JSON:-/var/lib/livereduce/livereduce_filewatch.json}"
 
+SERVICE="livereduce.service"
+
 FILEWATCH_LOG="${LIVEREDUCE_FILEWATCH_LOG:-/var/log/SNS_applications/livereduce_filewatch.log}"
-# fail at startup, as livereduce.py does for its own log; a write failing later only warns (see signal_livereduce)
+# fail at startup, as livereduce.py does for its own log; a write failing later only warns (see log_entry)
 if ! { : >>"${FILEWATCH_LOG}"; } 2>/dev/null; then
     echo "ERROR: Cannot write to log file '${FILEWATCH_LOG}'." >&2
     exit 1
@@ -31,20 +35,17 @@ fi
 ### Reusable functions
 ######################
 
-# Read the filewatch data from the JSON file and set as global variables
+# Read the filewatch data from the JSON file and set as global variables. Returns 1 if it doesn't exist
 read_filewatch_data() {
     local json_file="$JSON_FILE"
-    if [ ! -f "$json_file" ]; then
-        echo "Error: $json_file does not exist."
-        exit 1
-    fi
+    [ -f "$json_file" ] || return 1
     # Read the JSON file and extract the file paths, md5 sums, and file sizes
     # Note, only one of proc or postproc is required;
     # if one is missing, they get set to "null"
     # Read the file once, as livereduce.py may replace it between the jq calls
     local json
-    json=$(<"$json_file")
-    LIVEREDUCE_PID=$(jq -r '.pid' <<<"$json")
+    json=$(<"$json_file") || return 1
+    INVOCATION_ID=$(jq -r '.invocation_id' <<<"$json")
     CONFIG_PATH=$(jq -r '.config_file' <<<"$json")
     CONFIG_MD5=$(jq -r '.config_md5' <<<"$json")
     CONFIG_SIZE=$(jq -r '.config_size_bytes' <<<"$json")
@@ -63,107 +64,134 @@ read_filewatch_data() {
 # Resolve every symlink in a path, or return "null" for a "null" path
 resolve_path() { if [ "${1}" = "null" ]; then echo "null"; else readlink -m "${1}"; fi; }
 
-# The published paths and the files they point to; a change in any of them needs a restart of this script
-watched_paths() { echo "$CONFIG_PATH|$PROC_PATH|$POST_PROC_PATH|$CONFIG_REAL|$PROC_REAL|$POST_PROC_REAL"; }
-
 # Get file hash (md5 sum) of a file, or return "null" if the file does not exist or is empty
 file_hash() { [ -s "${1}" ] && md5sum "${1}" | cut -d' ' -f1 || echo "null"; }
 
 # Get file size of a file, following symlinks as livereduce.py does, or return "null" if the file does not exist or is empty
 file_size() { [ -s "${1}" ] && stat -L -c%s "${1}" || echo "null"; }
 
-# Compare the current file size and md5 sum of a file to the stored values, and kill the livereduce service if they differ
-check_and_kill_if_changed() {
-    local file_path="$1"
-    local old_md5="$2"
-    local old_size="$3"
-    local new_md5
-    local new_size
-
-    # livereduce is already restarting, and will load the current files
-    if [ "$WAITING" -eq 1 ]; then
-        return
-    fi
+# Compare a file's size, then md5 sum, with the stored values. If it changed, add why to CHANGES and return 0
+file_changed() {
+    local file_path="$1" old_md5="$2" old_size="$3" new_md5 new_size
 
     # if path is "null", skip the check
     if [ "$file_path" = "null" ]; then
         echo "Skipping check for $file_path (not present)"
-        return
+        return 1
     fi
 
     # First check file size
     new_size=$(file_size "$file_path")
     if [ "$new_size" != "$old_size" ]; then
-        signal_livereduce TERM "File size changed for $file_path (old: $old_size, new: $new_size)" && WAITING=1
-        return
+        CHANGES+=("File size changed for $file_path (old: $old_size, new: $new_size)")
+        return 0
     fi
 
     # If file size is the same, check md5 sum
     new_md5=$(file_hash "$file_path")
     if [ "$new_md5" != "$old_md5" ]; then
-        signal_livereduce TERM "MD5 sum changed for $file_path (old: $old_md5, new: $new_md5)" && WAITING=1
+        CHANGES+=("MD5 sum changed for $file_path (old: $old_md5, new: $new_md5)")
+        return 0
     fi
+    return 1
 }
 
-# Check all files for changes
-check_all () {
-    check_and_kill_if_changed "$CONFIG_PATH" "$CONFIG_MD5" "$CONFIG_SIZE"
-    check_and_kill_if_changed "$PROC_PATH" "$PROC_MD5" "$PROC_SIZE"
-    check_and_kill_if_changed "$POST_PROC_PATH" "$POST_PROC_MD5" "$POST_PROC_SIZE"
+# Check all files for changes, listing them in CHANGES. Returns 0 if any changed
+check_all() {
+    CHANGES=()
+    file_changed "$CONFIG_PATH" "$CONFIG_MD5" "$CONFIG_SIZE"
+    file_changed "$PROC_PATH" "$PROC_MD5" "$PROC_SIZE"
+    file_changed "$POST_PROC_PATH" "$POST_PROC_MD5" "$POST_PROC_SIZE"
+    [ "${#CHANGES[@]}" -gt 0 ]
 }
 
-# Whether the pid livereduce.py published is still livereduce.py, run by this user. It may have exited,
-# and its pid been reused, since it wrote the json
-livereduce_running() {
-    [[ "$LIVEREDUCE_PID" =~ ^[0-9]+$ ]] || return 1
-    [ -O "/proc/$LIVEREDUCE_PID" ] || return 1
-    tr '\0' '\n' <"/proc/$LIVEREDUCE_PID/cmdline" 2>/dev/null | grep -qx '\(.*/\)\?livereduce\.py'
-}
-
-# Signal livereduce.py with a reason, which is logged. Returns 1 if livereduce.py isn't running
-signal_livereduce() {
-    local signal="${1}" reason="${2}" result entry status=0
-    # signal first, so a log file that can't be written never stops the change being delivered
-    if livereduce_running && kill "-${signal}" "${LIVEREDUCE_PID}" 2>/dev/null; then
-        result="sent SIG${signal} to livereduce.py (pid ${LIVEREDUCE_PID})"
-    else
-        # nothing to do - it picks up the current files whenever it next starts
-        result="livereduce.py (pid ${LIVEREDUCE_PID}) is not running, no SIG${signal} sent"
-        status=1
+# Seconds to wait for the files to be quiet before acting on a change: filewatch.delay in the config
+# file livereduce.py loaded, or the default when that is missing, unreadable or invalid
+read_delay() {
+    local delay=""
+    if [ "$CONFIG_PATH" != "null" ]; then
+        delay=$(jq -r ".filewatch.delay // ${DEFAULT_DELAY}" "$CONFIG_PATH" 2>/dev/null)
     fi
-    entry="$(date --iso-8601=seconds) ${reason}"$'\n'"${result}"
+    if ! [[ "$delay" =~ ^[0-9]+$ ]]; then
+        [ -n "$delay" ] && echo "WARNING: Invalid filewatch.delay value '$delay'. Using default: $DEFAULT_DELAY" >&2
+        delay=$DEFAULT_DELAY
+    fi
+    echo "$delay"
+}
+
+# Whether the json was written by the current run of livereduce.service, which is running. Until then
+# it is missing, or left over from the previous run
+published_by_current_run() {
+    [ "$INVOCATION_ID" != "null" ] || return 1
+    systemctl --quiet is-active "$SERVICE" || return 1
+    [ "$(systemctl show --property InvocationID --value "$SERVICE")" = "$INVOCATION_ID" ]
+}
+
+# Log an entry to the journal and the log file
+log_entry() {
+    local entry
+    entry="$(date --iso-8601=seconds) ${1}"
     echo "${entry}" # journal
     printf '\n%s\n%s\n' "#############################################################################" "${entry}" \
         >>"${FILEWATCH_LOG}" 2>/dev/null || echo "WARNING: could not write to ${FILEWATCH_LOG}" >&2
-    return "${status}"
+}
+
+# Restart livereduce.service, logging each of the CHANGES that caused it. Returns 1 if systemctl refused
+restart_livereduce() {
+    local error
+    # log first: the restart stops this script too (PartOf=), which may not get to log afterwards.
+    # A log file that can't be written only warns, so never stops the change being delivered
+    log_entry "$(printf '%s\n' "${CHANGES[@]}")"$'\n'"restarting ${SERVICE}"
+    # --no-block: don't wait for the job, which stops this script
+    if ! error=$(systemctl restart --no-block "${SERVICE}" 2>&1); then
+        log_entry "could not restart ${SERVICE}: ${error}" # a later change tries again
+        return 1
+    fi
 }
 
 #############################
 ### Main script execution ###
 #############################
 
-# Wait while livereduce service is restarting and generating new filewatch data
+# Set once livereduce.service has been restarted; this script is restarted with it
 WAITING=0
+# When to check the files after a change ($SECONDS), once they have been quiet for DELAY seconds; empty when no change
+DEADLINE=""
+DEFAULT_DELAY=5
 
-# Read the filewatch data and initial check of the files
-read_filewatch_data
-check_all
+# A change was seen: check the files once they have been quiet for DELAY seconds
+schedule_check() { DEADLINE=$((SECONDS + DELAY)); }
 
-# The directories below are only computed once, so a change of paths needs a restart of this script
-WATCHED_PATHS="$(watched_paths)"
+# The files have been quiet since a change: restart livereduce.service if any of them changed. An edit
+# that was undone in the meantime changes nothing
+apply_changes() {
+    DEADLINE=""
+    check_all && restart_livereduce && WAITING=1
+}
+
+# Wait for the run of livereduce.service this script was started with to publish what it loaded
+echo "Waiting for livereduce.py to publish $JSON_FILE"
+until read_filewatch_data && published_by_current_run; do
+    sleep 1
+done
+echo "Watching the files published by livereduce.py (invocation $INVOCATION_ID)"
+DELAY=$(read_delay)
+echo "Acting on changes once the files have been quiet for $DELAY s"
+# catch changes made after livereduce.py loaded the files
+check_all && schedule_check
 
 # Watch the directories of the files, not the files themselves: a file watch is lost when an
 # editor saves by renaming a new file over the old one, and inotifywait fails on a "null" path.
 # The directories of symlink targets are watched too, so editing the file a symlink points to is seen
 mapfile -t WATCH_DIRS < <(
-    for file in "$JSON_FILE" "$CONFIG_PATH" "$PROC_PATH" "$POST_PROC_PATH" \
+    for file in "$CONFIG_PATH" "$PROC_PATH" "$POST_PROC_PATH" \
         "$CONFIG_REAL" "$PROC_REAL" "$POST_PROC_REAL"; do
         [ "$file" != "null" ] && dirname "$file"
     done | sort -u
 )
 
 # Set up inotifywait to watch for changes to the files
-# When a change is detected, it will call check_and_kill_if_changed for the changed file
+# When a change to one of them is detected, the files are checked once they have been quiet for DELAY seconds
 # close_write fires once per completed save (modify fires on every write, mid-save);
 # moved_to/moved_from/delete catch saves that rename a temp file into place or remove the file
 #
@@ -175,34 +203,36 @@ exec {EVENTS}< <(inotifywait -m -e close_write,delete,moved_to,moved_from \
 INOTIFY_PID=$!
 trap 'kill "$INOTIFY_PID" 2>/dev/null' EXIT
 
-while IFS='|' read -r -u "$EVENTS" dir file event; do
+while true; do
+    # wait for the next event, or only until the deadline when a change is pending
+    timeout=()
+    if [ -n "$DEADLINE" ]; then
+        remaining=$((DEADLINE - SECONDS))
+        if [ "$remaining" -le 0 ]; then
+            apply_changes
+            continue
+        fi
+        timeout=(-t "$remaining")
+    fi
+    IFS='|' read -r -u "$EVENTS" "${timeout[@]}" dir file _event
+    status=$?
+    if [ "$status" -gt 128 ]; then # timed out: the files have been quiet
+        apply_changes
+        continue
+    fi
+    [ "$status" -eq 0 ] || break # inotifywait stopped
+
     # inotifywait's own messages (e.g. "Watches established.") have no "|"
     if [ -z "$file" ]; then
         echo "$dir"
         continue
     fi
+    # livereduce is already restarting, and will load the current files. systemd restarts this script with it
+    [ "$WAITING" -eq 1 ] && continue
     path="${dir%/}/${file}"
     case "$path" in
-        "$JSON_FILE")
-            # livereduce.py writes a temp file and renames it into place
-            [ "$event" = "MOVED_TO" ] || continue
-            read_filewatch_data
-            if [ "$(watched_paths)" != "$WATCHED_PATHS" ]; then
-                echo "Watched paths changed, exiting so systemd restarts the watcher"
-                exit 0
-            fi
-            WAITING=0
-            # catch changes made after livereduce.py loaded the files
-            check_all
-            ;;
-        "$CONFIG_PATH" | "$CONFIG_REAL")
-            check_and_kill_if_changed "$CONFIG_PATH" "$CONFIG_MD5" "$CONFIG_SIZE"
-            ;;
-        "$PROC_PATH" | "$PROC_REAL")
-            check_and_kill_if_changed "$PROC_PATH" "$PROC_MD5" "$PROC_SIZE"
-            ;;
-        "$POST_PROC_PATH" | "$POST_PROC_REAL")
-            check_and_kill_if_changed "$POST_PROC_PATH" "$POST_PROC_MD5" "$POST_PROC_SIZE"
+        "$CONFIG_PATH" | "$CONFIG_REAL" | "$PROC_PATH" | "$PROC_REAL" | "$POST_PROC_PATH" | "$POST_PROC_REAL")
+            schedule_check
             ;;
     esac
     # any other file in the watched directories is ignored

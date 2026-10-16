@@ -64,9 +64,9 @@ flowchart TD
 - Restarts main service if unresponsive
 
 **livereduce_filewatch**
-- Optional, independent service
+- Optional service, started, stopped and restarted along with the daemon (`PartOf=livereduce.service`)
 - Detects script changes via inotify file watching, comparing md5sums
-- Script or configuration changed: sends the daemon `SIGTERM`, it exits cleanly, and systemd restarts it
+- Script or configuration changed: restarts the daemon with `systemctl restart`, as the watchdog does
 
 ## Data Flow
 
