@@ -42,6 +42,14 @@ def load_livereduce():
     os.environ.setdefault("USER", "livereduce-test")
     os.environ["LIVEREDUCE_FILEWATCH_JSON"] = str(FILEWATCH_JSON)
 
+    # importing mantid.simpleapi otherwise starts downloading every instrument definition in the
+    # background, and the interpreter waits for that to finish before exiting
+    from mantid.kernel import ConfigService  # noqa: PLC0415
+
+    ConfigService["UpdateInstrumentDefinitions.OnStartup"] = "0"
+    ConfigService["CheckMantidVersion.OnStartup"] = "0"
+    ConfigService["usagereports.enabled"] = "0"
+
     namespace = {"__name__": "livereduce", "__file__": str(SCRIPT)}
     cwd = os.getcwd()
     # livereduce.py replaces these with a handler that only queues the signal for its main loop,
@@ -81,6 +89,7 @@ def run_refresh_scripts(config, output_name):
     shutil.copy(FILEWATCH_JSON, OUTPUT_DIR / output_name)
     print(json.dumps(data, indent=2))
 
+    assert data["invocation_id"] == os.environ.get("INVOCATION_ID")
     assert data["config_file"] == config.filename
     assert data["config_size_bytes"] == config.config_size_bytes
     assert data["config_md5"] == config.config_md5
